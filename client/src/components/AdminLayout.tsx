@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useUser, useLogout } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -21,10 +22,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const logoutMutation = useLogout();
 
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation("/admin/login");
+    }
+  }, [user, isLoading, setLocation]);
+
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   
   if (!user) {
-    setLocation("/admin/login");
     return null;
   }
 

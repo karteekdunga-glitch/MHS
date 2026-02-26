@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLogin, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,17 @@ export default function AdminLogin() {
   const loginMutation = useLogin();
   const { data: user, isLoading } = useUser();
 
-  // Redirect if already logged in
-  if (user) {
-    setLocation("/admin");
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      setLocation("/admin");
+    }
+  }, [user, setLocation]);
+
+  useEffect(() => {
+    if (loginMutation.isSuccess) {
+      setLocation("/admin");
+    }
+  }, [loginMutation.isSuccess, setLocation]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
