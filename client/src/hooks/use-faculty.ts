@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
-import { z } from "zod";
 
 export function useFaculty(status?: string) {
   return useQuery({
@@ -19,11 +18,10 @@ export function useFaculty(status?: string) {
 export function useCreateFaculty() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: z.infer<typeof api.faculty.create.input>) => {
+    mutationFn: async (data: FormData) => {
       const res = await fetch(api.faculty.create.path, {
         method: api.faculty.create.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: data,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to create faculty profile");
@@ -36,12 +34,11 @@ export function useCreateFaculty() {
 export function useUpdateFaculty() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: number } & Partial<z.infer<typeof api.faculty.update.input>>) => {
+    mutationFn: async ({ id, data }: { id: number; data: FormData }) => {
       const url = buildUrl(api.faculty.update.path, { id });
       const res = await fetch(url, {
         method: api.faculty.update.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: data,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to update faculty profile");

@@ -13,9 +13,10 @@ import {
   SidebarMenuButton, 
   SidebarMenuItem,
   SidebarHeader,
-  SidebarFooter
+  SidebarFooter,
+  useSidebar
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Megaphone, Users, CalendarDays, Image as ImageIcon, Medal, LogOut, Loader2, GraduationCap, BookOpen, Heart, ClipboardCheck, UserPlus } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, CalendarDays, Image as ImageIcon, Medal, LogOut, Loader2, GraduationCap, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal } from "lucide-react";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useUser();
@@ -49,70 +50,131 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-slate-50">
-        <Sidebar className="border-r shadow-sm">
-          <SidebarHeader className="p-4 py-6">
-            <div className="flex items-center gap-2 px-2 text-primary">
-              <GraduationCap className="h-8 w-8" />
-              <div className="font-bold font-serif leading-tight">
-                <div>Montessori</div>
-                <div className="text-xs text-muted-foreground font-sans">Admin Portal</div>
-              </div>
+      <AdminChrome
+        navItems={navItems}
+        user={user}
+        location={location}
+        logoutMutation={logoutMutation}
+      >
+        {children}
+      </AdminChrome>
+    </SidebarProvider>
+  );
+}
+
+type NavItem = { title: string; url: string; icon: React.ComponentType<{ className?: string }> };
+
+function AdminChrome({
+  navItems,
+  user,
+  location,
+  logoutMutation,
+  children,
+}: {
+  navItems: NavItem[];
+  user: any;
+  location: string;
+  logoutMutation: ReturnType<typeof useLogout>;
+  children: React.ReactNode;
+}) {
+  const { toggleSidebar, state, isMobile, setOpenMobile } = useSidebar();
+  const collapsed = state === "collapsed";
+
+  const handleMobileToggle = () => {
+    if (isMobile) {
+      setOpenMobile(true);
+    } else {
+      toggleSidebar();
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen w-full bg-slate-50">
+      <Sidebar className="border-r border-[#0B2F5B]/25 shadow-2xl">
+        <SidebarHeader className="p-4 py-6">
+          <div className="flex items-center gap-2 px-2 text-primary">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-[#0B2F5B] font-bold">
+              <GraduationCap className="h-5 w-5" />
             </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider">Content Management</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={location === item.url}
-                        className="font-medium"
-                      >
-                        <Link href={item.url}>
-                          <item.icon className="w-5 h-5" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-          <SidebarFooter className="p-4 border-t">
-            <div className="flex items-center justify-between px-2 mb-4">
-              <div className="text-sm font-medium truncate pr-2">{user.email}</div>
-              <Badge variant="outline" className="bg-primary/10 text-primary uppercase text-[10px]">{user.role}</Badge>
+            <div className="font-bold font-serif leading-tight text-sidebar-foreground">
+              <div>Montessori</div>
+              <div className="text-xs text-white/70 font-sans tracking-wide">Admin Portal</div>
             </div>
-            <Button 
-              variant="destructive" 
-              className="w-full justify-start text-destructive-foreground" 
-              onClick={() => logoutMutation.mutate()}
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-white/70">Content Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={location === item.url}
+                      className="font-medium"
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="w-5 h-5" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter className="p-4 border-t border-white/10">
+          <div className="flex items-center justify-between px-2 mb-4 text-white">
+            <div className="text-sm font-medium truncate pr-2">{user.email}</div>
+            <Badge variant="outline" className="bg-[#F5C542]/20 text-[#F5C542] uppercase text-[10px] border-[#F5C542]/40">{user.role}</Badge>
+          </div>
+          <Button 
+            variant="destructive" 
+            className="w-full justify-start text-destructive-foreground" 
+            onClick={() => logoutMutation.mutate()}
+          >
+            <LogOut className="w-4 h-4 mr-2" /> Logout
+          </Button>
+        </SidebarFooter>
+      </Sidebar>
+      
+      <main className="flex-1 overflow-auto flex flex-col">
+        <header className="h-16 bg-white border-b px-4 md:px-8 flex items-center justify-between sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden md:inline-flex border-primary/20"
+              onClick={toggleSidebar}
             >
-              <LogOut className="w-4 h-4 mr-2" /> Logout
+              {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+              <span className="sr-only">Toggle sidebar</span>
             </Button>
-          </SidebarFooter>
-        </Sidebar>
-        
-        <main className="flex-1 overflow-auto flex flex-col">
-          <header className="h-16 bg-white border-b px-8 flex items-center justify-between sticky top-0 z-10">
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:hidden border-primary/20"
+              onClick={handleMobileToggle}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle sidebar</span>
+            </Button>
+            <MoreHorizontal className="hidden md:block h-5 w-5 text-muted-foreground" />
             <h1 className="text-xl font-bold text-foreground">
               {navItems.find(i => i.url === location)?.title || "Dashboard"}
             </h1>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/">View Public Site</Link>
-            </Button>
-          </header>
-          <div className="p-8 flex-1">
-            {children}
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/">View Public Site</Link>
+          </Button>
+        </header>
+        <div className="p-4 md:p-8 flex-1">
+          {children}
+        </div>
+      </main>
+    </div>
   );
 }
 

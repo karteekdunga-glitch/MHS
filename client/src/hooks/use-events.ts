@@ -11,12 +11,19 @@ function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: strin
   return result.data;
 }
 
-export function useEvents(status?: string) {
+type EventFilters = {
+  status?: string;
+  scope?: string;
+};
+
+export function useEvents(filters?: EventFilters) {
+  const serialized = filters ? JSON.stringify(filters) : "all";
   return useQuery({
-    queryKey: [api.events.list.path, status],
+    queryKey: [api.events.list.path, serialized],
     queryFn: async () => {
       const url = new URL(api.events.list.path, window.location.origin);
-      if (status) url.searchParams.append("status", status);
+      if (filters?.status) url.searchParams.append("status", filters.status);
+      if (filters?.scope) url.searchParams.append("scope", filters.scope);
       
       const res = await fetch(url.toString(), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch events");
@@ -29,12 +36,10 @@ export function useEvents(status?: string) {
 export function useCreateEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: z.infer<typeof api.events.create.input>) => {
-      const validated = api.events.create.input.parse(data);
+    mutationFn: async (formData: FormData) => {
       const res = await fetch(api.events.create.path, {
         method: api.events.create.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
+        body: formData,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to create event");
@@ -47,12 +52,11 @@ export function useCreateEvent() {
 export function useUpdateEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: number } & Partial<z.infer<typeof api.events.update.input>>) => {
+    mutationFn: async ({ id, data }: { id: number; data: FormData }) => {
       const url = buildUrl(api.events.update.path, { id });
       const res = await fetch(url, {
         method: api.events.update.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: data,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to update event");

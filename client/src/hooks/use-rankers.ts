@@ -75,3 +75,22 @@ export function useDeleteRanker() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.rankers.list.path] }),
   });
 }
+
+export function useUploadRankerPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, file }: { id: number; file: File }) => {
+      const url = buildUrl(api.rankers.uploadPhoto.path, { id });
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await fetch(url, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to upload photo");
+      return parseWithLogging(api.rankers.uploadPhoto.responses[200], await res.json(), "rankers.photo");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.rankers.list.path] }),
+  });
+}

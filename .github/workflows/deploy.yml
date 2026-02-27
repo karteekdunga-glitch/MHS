@@ -1,0 +1,53 @@
+name: Deploy to School Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build monorepo
+        run: npm run build
+
+      - name: Deploy over SSH
+        if: success()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: REMOTE_APP_DIR,RESTART_COMMAND
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -e
+            cd "$REMOTE_APP_DIR"
+            git fetch origin main
+            git reset --hard origin/main
+            npm install --omit=dev
+            npm run build
+            if [ -n "$RESTART_COMMAND" ]; then
+              eval "$RESTART_COMMAND"
+            fi
+        env:
+          REMOTE_APP_DIR: ${{ secrets.REMOTE_APP_DIR }}
+          RESTART_COMMAND: ${{ secrets.RESTART_COMMAND }}

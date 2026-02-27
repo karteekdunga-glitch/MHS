@@ -9,11 +9,14 @@ export function Navigation() {
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "Academics", href: "#academics" },
-    { name: "Admissions", href: "#" },
-    { name: "Student Life", href: "#" },
-    { name: "Faculty", href: "#faculty" },
-    { name: "Contact", href: "#" },
+    { name: "Events", href: "/events" },
+    { name: "Academics", href: "/academics" },
+    { name: "Student Life", href: "/student-life" },
+    { name: "Faculty", href: "/faculty" },
+    { name: "Results", href: "/results" },
+    { name: "Rankers", href: "/rankers" },
+    { name: "Admissions", href: "/admissions" },
+    { name: "Contact", href: "#contact" },
   ];
 
   return (
