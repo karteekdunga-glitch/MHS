@@ -26,7 +26,7 @@ export function useLogin() {
         credentials: "include",
       });
       if (!res.ok) {
-        if (res.status === 401) throw new Error("Invalid credentials");
+        if (res.status === 401) throw new Error("Invalid user. Please sign up first.");
         throw new Error("Login failed");
       }
       return api.auth.login.responses[200].parse(await res.json());

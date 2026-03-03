@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api, buildUrl } from "@shared/routes";
@@ -27,6 +27,7 @@ import type {
 import { admissionStatusValues, eventStatusValues } from "@shared/schema";
 
 const MemoryStore = createMemoryStore(session);
+const SESSION_MAX_AGE_MS = Number(process.env.ADMIN_SESSION_MAX_AGE_MS ?? 60 * 60 * 1000);
 
 function normalizeFiles(
   files?: Express.Multer.File[] | Express.Multer.File | { [fieldname: string]: Express.Multer.File[] },
@@ -181,14 +182,19 @@ export async function registerRoutes(
   // Session setup
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || 'secret123',
+      secret: process.env.SESSION_SECRET || "secret123",
       resave: false,
       saveUninitialized: false,
-      cookie: { maxAge: 86400000 },
+      rolling: false,
+      cookie: {
+        maxAge: SESSION_MAX_AGE_MS,
+        sameSite: "lax",
+        httpOnly: true,
+      },
       store: new MemoryStore({
-        checkPeriod: 86400000,
+        checkPeriod: SESSION_MAX_AGE_MS,
       }),
-    })
+    }),
   );
 
   app.use(passport.initialize());
@@ -196,17 +202,17 @@ export async function registerRoutes(
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
   passport.use(
-    new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
+    new LocalStrategy({ usernameField: "email" }, async (email, password, done) => {
       try {
         const user = await storage.getUserByEmail(email);
-        if (!user || user.password !== password) {
-          return done(null, false, { message: 'Invalid credentials' });
+        if (!user || user.password !== password || user.role !== "admin") {
+          return done(null, false, { message: "Invalid user. Please sign up first." });
         }
         return done(null, user);
       } catch (err) {
         return done(err);
       }
-    })
+    }),
   );
 
   passport.serializeUser((user: any, done) => {
@@ -231,8 +237,39 @@ export async function registerRoutes(
   };
 
   // Auth Routes
-  app.post(api.auth.login.path, passport.authenticate('local'), (req, res) => {
-    res.json({ message: 'Logged in successfully', user: req.user });
+  app.post(api.auth.login.path, (req: Request, res: Response, next: NextFunction) => {
+    try {
+      api.auth.login.input.parse(req.body);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join("."),
+        });
+      }
+      return next(err);
+    }
+
+    passport.authenticate(
+      "local",
+      (err: unknown, user: Express.User | false, info?: { message?: string }) => {
+        if (err) return next(err);
+        if (!user) {
+          return res.status(401).json({
+            message: info?.message || "Invalid user. Please sign up first.",
+          });
+        }
+
+        req.logIn(user, (loginErr) => {
+          if (loginErr) return next(loginErr);
+          const safeUser = user as { id: number; email: string; role: string | null };
+          return res.json({
+            message: "Logged in successfully",
+            user: { id: safeUser.id, email: safeUser.email, role: safeUser.role },
+          });
+        });
+      },
+    )(req, res, next);
   });
 
   app.post(api.auth.logout.path, (req, res, next) => {
@@ -1023,28 +1060,33 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
-  // Seed Admin User
-  const existingAdmin = await storage.getUserByEmail('karteekdunga@gmail.com');
-  if (!existingAdmin) {
-    await storage.createUser({
-      email: 'karteekdunga@gmail.com',
-      password: 'test123',
-      role: 'admin',
-    });
-  }
-
-  // Seed sample data and ensure rankers mirror latest results
-  await seedDatabase();
-  await storage.syncRankersFromResults().catch((err) =>
-    console.error("Failed to sync rankers from existing results", err),
-  );
-
   const scheduler = setInterval(() => {
     storage.syncEventStatuses().catch((err) => console.error("Event scheduler error:", err));
   }, 60_000);
-  httpServer.on("close", () => clearInterval(scheduler));
+  httpServer.on("close", () => {
+    clearInterval(scheduler);
+  });
 
   return httpServer;
+}
+
+export async function prepareInitialData() {
+  const adminEmail = "karteekdunga@gmail.com";
+  const existingAdmin = await storage.getUserByEmail(adminEmail);
+  if (!existingAdmin) {
+    await storage.createUser({
+      email: adminEmail,
+      password: "test123",
+      role: "admin",
+    });
+  }
+
+  await seedDatabase();
+  try {
+    await storage.syncRankersFromResults();
+  } catch (err) {
+    console.error("Failed to sync rankers from existing results", err);
+  }
 }
 
 async function seedDatabase() {
