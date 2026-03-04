@@ -165,13 +165,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  width: min(90vw, 800px);
 }
 
 .welcome-outline {
   position: relative;
-  font-size: clamp(2.5rem, 4vw, 4.5rem);
+  font-size: clamp(2.2rem, 6vw, 4.8rem);
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: clamp(0.08em, 0.3em, 0.18em);
   text-transform: uppercase;
   color: transparent;
   -webkit-text-stroke: 2px rgba(255, 255, 255, 0.35);
@@ -195,5 +196,25 @@
   }
   100% {
     background-position: 200% 50%;
+  }
+}
+
+@media (max-width: 640px) {
+  .welcome-outline {
+    font-size: clamp(1.8rem, 8vw, 3rem);
+    -webkit-text-stroke: 1px rgba(255, 255, 255, 0.35);
+  }
+
+  .welcome-text-wrapper {
+    gap: 0.5rem;
+  }
+
+  .welcome-overlay {
+    padding: 0 1rem;
+  }
+
+  .welcome-logo {
+    width: 140px;
+    height: 140px;
   }
 }
