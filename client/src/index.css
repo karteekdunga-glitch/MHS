@@ -126,3 +126,74 @@
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
   }
 }
+
+.welcome-overlay {
+  animation: welcomeFade 5.5s forwards;
+}
+
+@keyframes welcomeFade {
+  0% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.welcome-logo {
+  animation: welcomeLogoJourney 5.5s forwards;
+  transform-origin: center;
+}
+
+@keyframes welcomeLogoJourney {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.2) translate(0, 0);
+  }
+  100% {
+    transform: scale(0.32) translate(-240px, -270px);
+    opacity: 0;
+  }
+}
+
+.welcome-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.welcome-outline {
+  position: relative;
+  font-size: clamp(2.5rem, 4vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(255, 255, 255, 0.35);
+}
+
+.welcome-outline::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  background: linear-gradient(120deg, rgba(255,255,255,0.95), rgba(255,255,255,0.2), rgba(255,255,255,0.95));
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: welcomeStroke 2.5s linear infinite;
+}
+
+@keyframes welcomeStroke {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}

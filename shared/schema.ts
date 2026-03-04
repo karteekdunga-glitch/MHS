@@ -128,6 +128,21 @@ export const studentLifeImages = pgTable("student_life_images", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const headmasterMessages = pgTable("headmaster_messages", {
+  id: serial("id").primaryKey(),
+  headName: text("head_name").notNull(),
+  role: text("role").notNull().default("Correspondent"),
+  title: text("title").notNull(),
+  highlightQuote: text("highlight_quote"),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("draft"),
+  imageSourceType: text("image_source_type").notNull().default("upload"),
+  imageUrl: text("image_url"),
+  imagePath: text("image_path"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const results = pgTable("results", {
   id: serial("id").primaryKey(),
   rollNo: text("roll_no").notNull().unique(),
@@ -211,6 +226,14 @@ export type InsertStudentLife = z.infer<typeof insertStudentLifeSchema>;
 export const insertStudentLifeImageSchema = createInsertSchema(studentLifeImages).omit({ id: true, createdAt: true });
 export type StudentLifeImage = typeof studentLifeImages.$inferSelect;
 export type InsertStudentLifeImage = z.infer<typeof insertStudentLifeImageSchema>;
+
+export const insertHeadmasterMessageSchema = createInsertSchema(headmasterMessages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type HeadmasterMessage = typeof headmasterMessages.$inferSelect;
+export type InsertHeadmasterMessage = z.infer<typeof insertHeadmasterMessageSchema>;
 
 export const insertResultSchema = createInsertSchema(results).omit({ id: true });
 export type Result = typeof results.$inferSelect;

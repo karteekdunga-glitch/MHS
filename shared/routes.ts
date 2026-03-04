@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { 
-  insertAnnouncementSchema, announcements, 
+import {
+  insertAnnouncementSchema, announcements,
   facultyProfiles,
   events, eventStatusValues,
   insertGallerySchema, galleryImages,
@@ -12,6 +12,8 @@ import {
   insertAcademicDocumentSchema, academicDocuments,
   users,
   admissionStatusValues,
+  headmasterMessages,
+  insertHeadmasterMessageSchema,
 } from './schema';
 
 export const errorSchemas = {
@@ -147,6 +149,19 @@ const studentLifeCreateInput = z.object({
 const studentLifeUpdateInput = studentLifeCreateInput.partial().extend({
   retainImageIds: z.array(z.number()).optional(),
 });
+
+const headmasterBaseInput = z.object({
+  headName: z.string().min(3),
+  role: z.string().min(3).default("Correspondent").optional(),
+  title: z.string().min(5),
+  highlightQuote: z.string().min(8).optional(),
+  message: z.string().min(40),
+  status: z.enum(["draft", "published"]).optional(),
+  imageSourceType: z.enum(["url", "upload"]).default("upload"),
+  imageUrl: z.string().url().optional(),
+});
+
+const headmasterUpdateInput = headmasterBaseInput.partial();
 
 const sitePreferencesSchema = z.object({
   showResultsInNav: z.boolean(),
@@ -430,6 +445,31 @@ export const api = {
       path: '/api/student-life/:id' as const,
       responses: { 204: z.void(), 404: errorSchemas.notFound },
     }
+  },
+  headmaster: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/headmaster' as const,
+      input: z.object({ status: z.string().optional() }).optional(),
+      responses: { 200: z.array(z.custom<typeof headmasterMessages.$inferSelect>()) },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/headmaster' as const,
+      input: headmasterBaseInput,
+      responses: { 201: z.custom<typeof headmasterMessages.$inferSelect>(), 401: errorSchemas.unauthorized },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/headmaster/:id' as const,
+      input: headmasterUpdateInput,
+      responses: { 200: z.custom<typeof headmasterMessages.$inferSelect>(), 404: errorSchemas.notFound },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/headmaster/:id' as const,
+      responses: { 204: z.void(), 404: errorSchemas.notFound },
+    },
   },
   results: {
     list: {

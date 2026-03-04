@@ -72,7 +72,7 @@ export default function StudentLife() {
             </h1>
             <p className="text-base md:text-lg text-primary-foreground/90">
               Dive into mesmerising photo stories, cultural showcases, field trips, and leadership journeys
-              curated directly by the Montessori High School community.
+              curated directly by the Montessori EM High School community.
             </p>
           </div>
         </section>

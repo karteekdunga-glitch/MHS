@@ -1,6 +1,5 @@
 ﻿import type { Ranker } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const FALLBACK_PHOTO =
@@ -51,17 +50,12 @@ export function RankersPodium({ rankers }: { rankers: Ranker[] }) {
                       <p className="font-semibold">{ranker.score}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-white/70">
-                    <span>{ranker.percentage ? `${ranker.percentage}%` : "--"}</span>
-                    <a
-                      href={`/results?hallTicket=${encodeURIComponent(ranker.hallTicket || "")}&class=${encodeURIComponent(
-                        ranker.className || "",
-                      )}`}
-                      className="text-amber-200 hover:text-amber-100"
-                    >
-                      View Result
-                    </a>
-                  </div>
+              <div className="mt-3 flex items-center justify-between text-xs text-white/70">
+                <span>{ranker.percentage ? `${ranker.percentage}%` : "--"}</span>
+                <span className="rounded-full border border-white/20 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-white/60">
+                  Auto Sync
+                </span>
+              </div>
                 </div>
               ))}
             </div>
@@ -106,19 +100,11 @@ function PodiumCard({ ranker, placement }: { ranker: Ranker; placement: 1 | 2 | 
         <InfoTile label="Percentage" value={ranker.percentage ? `${ranker.percentage}%` : "--"} />
         <InfoTile label="Status" value="Pass" />
       </div>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Button className="rounded-full px-5" asChild>
-          <a
-            href={`/results?hallTicket=${encodeURIComponent(ranker.hallTicket || "")}&class=${encodeURIComponent(
-              ranker.className || "",
-            )}`}
-          >
-            View Result
-          </a>
-        </Button>
-        <Button variant="secondary" className="rounded-full px-5 border border-white/40 text-white" asChild>
-          <a href="/rankers">Open Celebration Page</a>
-        </Button>
+      <div className="mt-6 rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-white/80">
+        <p className="font-semibold text-white">Verified Achievement</p>
+        <p className="mt-1">
+          This spotlight updates the moment admin publishes results—no manual links or downloads are required.
+        </p>
       </div>
     </div>
   );

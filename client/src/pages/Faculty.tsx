@@ -17,7 +17,7 @@ export default function Faculty() {
           <div className="container mx-auto px-4 text-center space-y-4 max-w-3xl">
             <p className="text-xs uppercase tracking-[0.4em] text-primary">Faculty</p>
             <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-              Meet the Mentors Behind Montessori High School
+              Meet the Mentors Behind Montessori EM High School
             </h1>
             <p className="text-base md:text-lg text-slate-600">
               Every published profile below is powered by the admin dashboard, ensuring the public website always reflects

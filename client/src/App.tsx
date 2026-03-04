@@ -22,6 +22,7 @@ import Faculty from "@/pages/Faculty";
 import RankersCelebration from "@/pages/RankersCelebration";
 import AdminStudentLife from "@/pages/AdminStudentLife";
 import AdminEvents from "@/pages/AdminEvents";
+import AdminHeadmaster from "@/pages/AdminHeadmaster";
 import Events from "@/pages/Events";
 
 function Router() {
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/admin/announcements" component={AdminAnnouncements} />
       <Route path="/admin/academics" component={AdminAcademics} />
       <Route path="/admin/student-life" component={AdminStudentLife} />
+      <Route path="/admin/headmaster" component={AdminHeadmaster} />
       <Route path="/admin/faculty" component={AdminFaculty} />
       <Route path="/admin/events" component={AdminEvents} />
       <Route path="/admin/rankers" component={AdminRankers} />

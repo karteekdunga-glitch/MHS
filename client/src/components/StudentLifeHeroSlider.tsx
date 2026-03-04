@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1600&q=80";
+const AUTO_PLAY_INTERVAL = 3800;
 
 export type StudentLifeHeroVariant = "home" | "page";
 
@@ -45,7 +46,7 @@ export function StudentLifeHeroSlider({
     const interval = setInterval(() => {
       const nextIndex = (carouselApi.selectedScrollSnap() + 1) % sliderStories.length;
       carouselApi.scrollTo(nextIndex);
-    }, 2000);
+    }, AUTO_PLAY_INTERVAL);
     return () => clearInterval(interval);
   }, [carouselApi, hasMultiple, sliderStories.length]);
 

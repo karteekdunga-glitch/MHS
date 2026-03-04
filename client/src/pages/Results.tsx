@@ -126,7 +126,7 @@ export default function Results() {
           <GraduationCap className="w-16 h-16 mx-auto text-primary mb-4" />
           <h1 className="text-4xl font-bold mb-4">Montessori Results Portal</h1>
           <p className="text-muted-foreground text-lg">
-            Enter your hall ticket number and class to view the official scorecard issued by Montessori High School.
+            Enter your hall ticket number and class to view the official scorecard issued by Montessori EM High School.
           </p>
         </div>
 

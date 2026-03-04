@@ -4,13 +4,14 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Calendar, CalendarDays, Trophy, Users, BellRing, Medal, MapPin } from "lucide-react";
+import { ArrowRight, CalendarDays, BellRing, MapPin, Quote } from "lucide-react";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useRankers } from "@/hooks/use-rankers";
 import { useStudentLife, type StudentLifeEntry } from "@/hooks/use-additional-content";
+import { useHeadmasterMessages } from "@/hooks/use-headmaster";
 import { StudentLifeHeroSlider } from "@/components/StudentLifeHeroSlider";
-import { RankersPodium } from "@/components/RankersPodium";
-import type { Ranker } from "@shared/schema";
+import { SchoolLogo } from "@/components/SchoolLogo";
+import type { HeadmasterMessage, Ranker } from "@shared/schema";
 import { RankersHeroSlider } from "@/components/RankersHeroSlider";
 import { format } from "date-fns";
 import { useEvents } from "@/hooks/use-events";
@@ -23,19 +24,45 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 
+const FALLBACK_PORTRAIT =
+  "https://images.unsplash.com/photo-1541753866388-0b3c701627d3?auto=format&fit=crop&w=900&q=80";
+
+const WELCOME_STORAGE_KEY = "mems-welcome-shown";
+
 export default function Home() {
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      // Clean up older localStorage flag so past visits can see the splash again.
+      window.localStorage.removeItem(WELCOME_STORAGE_KEY);
+    } catch (error) {
+      console.warn("Unable to access localStorage for splash cleanup", error);
+    }
+    const hasSeenSplash = window.sessionStorage.getItem(WELCOME_STORAGE_KEY);
+    if (hasSeenSplash) return;
+    window.sessionStorage.setItem(WELCOME_STORAGE_KEY, "true");
+    setShowWelcome(true);
+    const timeout = window.setTimeout(() => setShowWelcome(false), 5500);
+    return () => window.clearTimeout(timeout);
+  }, []);
+
   const { data: announcements = [] } = useAnnouncements("published");
   const { data: rankers = [] } = useRankers("published");
   const { data: studentLifeData = [], isLoading: isStudentLifeLoading } = useStudentLife("published");
   const studentLifeStories = (studentLifeData as StudentLifeEntry[]) ?? [];
   const { data: sliderEvents = [] } = useEvents({ status: "published", scope: "upcoming" });
   const typedSliderEvents = (sliderEvents as SliderEvent[]) ?? [];
+  const { data: headmasterData = [] } = useHeadmasterMessages("published");
+  const headmasterMessages = (headmasterData as HeadmasterMessage[]) ?? [];
+  const featuredHeadmaster = headmasterMessages[0];
   const hasStudentLifeHero = studentLifeStories.length > 0;
   const publishedRankers = (rankers as Ranker[]) ?? [];
-  const topTenRankers = publishedRankers.slice(0, 10);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {showWelcome && <WelcomeSplash />}
       <Navigation />
 
       {hasStudentLifeHero ? (
@@ -59,7 +86,7 @@ export default function Home() {
               Nurturing Excellence,<br />Shaping Futures.
             </h1>
             <p className="text-lg md:text-xl text-slate-200 font-medium max-w-2xl mx-auto text-shadow">
-              Montessori High School provides a transformative educational experience in a disciplined and inspiring environment.
+              Montessori EM High School provides a transformative educational experience in a disciplined and inspiring environment.
             </p>
             {isStudentLifeLoading && (
               <p className="text-sm text-white/80">Loading student life highlights...</p>
@@ -102,35 +129,13 @@ export default function Home() {
         </section>
       )}
 
-      {/* Stats/Features Banner */}
-      <section className="bg-primary text-primary-foreground py-12 border-y-4 border-accent relative z-20 -mt-12 mx-4 md:mx-auto max-w-6xl rounded-2xl shadow-2xl">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 px-8 text-center divide-x divide-primary-foreground/20">
-          <div className="space-y-2">
-            <Trophy className="w-8 h-8 mx-auto text-accent" />
-            <div className="text-3xl font-bold">100%</div>
-            <div className="text-sm font-medium uppercase tracking-wider text-primary-foreground/80">Pass Rate</div>
-          </div>
-          <div className="space-y-2">
-            <Users className="w-8 h-8 mx-auto text-accent" />
-            <div className="text-3xl font-bold">50+</div>
-            <div className="text-sm font-medium uppercase tracking-wider text-primary-foreground/80">Expert Faculty</div>
-          </div>
-          <div className="space-y-2">
-            <Medal className="w-8 h-8 mx-auto text-accent" />
-            <div className="text-3xl font-bold">25+</div>
-            <div className="text-sm font-medium uppercase tracking-wider text-primary-foreground/80">Years Legacy</div>
-          </div>
-          <div className="space-y-2">
-            <Calendar className="w-8 h-8 mx-auto text-accent" />
-            <div className="text-3xl font-bold">Modern</div>
-            <div className="text-sm font-medium uppercase tracking-wider text-primary-foreground/80">Infrastructure</div>
-          </div>
-        </div>
-      </section>
+      {featuredHeadmaster && (
+        <HeadMasterWordsSection message={featuredHeadmaster} />
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 py-20 container mx-auto px-4 sm:px-6 lg:px-8 space-y-32">
-        
+
         {/* Latest Announcements */}
         <section>
           <div className="flex items-center justify-between mb-10">
@@ -194,6 +199,60 @@ type SliderEvent = {
   startDateTime: string;
   images?: Array<{ id: number; imageUrl: string }>;
 };
+
+function HeadMasterWordsSection({ message }: { message: HeadmasterMessage }) {
+  const portrait = message.imageUrl || FALLBACK_PORTRAIT;
+  const quote = message.highlightQuote || "Education is the quiet work of shaping courageous hearts.";
+  return (
+    <section className="bg-gradient-to-br from-[#031439] via-[#082a66] to-[#031439] text-white py-16">
+      <div className="container mx-auto px-4 sm:px-8 lg:px-12">
+        <div className="grid gap-10 lg:grid-cols-[1fr,1.5fr] items-center">
+          <div className="flex flex-col items-center lg:items-start gap-4">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-[32px] border border-white/20 shadow-2xl">
+              <img src={portrait} alt={message.headName} className="w-full h-[420px] object-cover" />
+            </div>
+            <div className="text-center lg:text-left space-y-1">
+              <p className="text-2xl font-semibold">{message.headName}</p>
+              <p className="text-sm uppercase tracking-[0.4em] text-white/70">{message.role}</p>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <Badge className="w-fit bg-white/10 text-white uppercase tracking-[0.4em]">
+              Head Master's Desk
+            </Badge>
+            <h3 className="text-3xl md:text-4xl font-bold leading-tight">{message.title}</h3>
+            <p className="text-lg italic text-white/80 flex items-start gap-3">
+              <Quote className="w-6 h-6 text-accent" />
+              {quote}
+            </p>
+            <p className="text-white/90 leading-relaxed whitespace-pre-line">
+              {message.message}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WelcomeSplash() {
+  return (
+    <div className="welcome-overlay fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-10 bg-slate-950 text-white">
+      <div className="flex flex-col items-center gap-6 text-center px-8">
+        <SchoolLogo size={200} className="welcome-logo drop-shadow-[0_25px_55px_rgba(0,0,0,0.45)]" />
+        <div className="welcome-text-wrapper">
+          <p className="welcome-outline" data-text="MONTESSORI">
+            MONTESSORI
+          </p>
+          <p className="welcome-outline" data-text="ENGLISH MEDIUM SCHOOL">
+            ENGLISH MEDIUM SCHOOL
+          </p>
+        </div>
+        <p className="text-sm uppercase tracking-[0.2em] text-white/80">Namaste</p>
+      </div>
+    </div>
+  );
+}
 
 function EventsHeroSlider({ events }: { events: SliderEvent[] }) {
   const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);

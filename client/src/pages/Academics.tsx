@@ -143,7 +143,7 @@ export default function Academics() {
           <div className="space-y-3">
             <h1 className="text-4xl font-bold">Academics Portal</h1>
             <p className="text-lg text-muted-foreground">
-              Montessori English Medium School follows a comprehensive state-aligned curriculum covering Telugu, Hindi, English, Mathematics,
+              Montessori EM High School follows a comprehensive state-aligned curriculum covering Telugu, Hindi, English, Mathematics,
               Physical Science, Biological Science, and Social Studies. Each subject is delivered through structured lesson
               plans, lab work, and project guides curated by our academic council.
             </p>

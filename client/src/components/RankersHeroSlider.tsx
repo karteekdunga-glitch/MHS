@@ -8,13 +8,14 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Crown, Medal } from "lucide-react";
 import type { Ranker } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1600&q=80";
+const AUTO_PLAY_INTERVAL = 3800;
 
 type RankerWithMeta = Ranker & {
   hallTicket?: string | null;
@@ -49,7 +50,7 @@ export function RankersHeroSlider({ rankers }: { rankers: RankerWithMeta[] }) {
     const interval = setInterval(() => {
       const nextIndex = (carouselApi.selectedScrollSnap() + 1) % slides.length;
       carouselApi.scrollTo(nextIndex);
-    }, 2000);
+    }, AUTO_PLAY_INTERVAL);
     return () => clearInterval(interval);
   }, [carouselApi, hasMultiple, slides.length]);
 
@@ -67,113 +68,84 @@ export function RankersHeroSlider({ rankers }: { rankers: RankerWithMeta[] }) {
         <CarouselContent>
           {slides.map((slide) => (
             <CarouselItem key={slide.id}>
-              <article className="grid min-h-[600px] w-full gap-6 overflow-hidden lg:grid-cols-[3fr,2fr]">
-                <div className="relative flex min-h-[360px] items-center justify-center">
+              <article className="grid min-h-[520px] w-full overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-r from-[#030816] via-[#071631] to-[#020817] shadow-2xl lg:grid-cols-[1.1fr,0.9fr]">
+                <div className="relative min-h-[320px]">
                   <img
                     src={slide.imageUrl || FALLBACK_IMAGE}
                     alt={slide.studentName}
                     className="absolute inset-0 h-full w-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-900/30" />
-                  <div className="relative z-10 w-full max-w-4xl px-6 py-14">
-                    <Badge className="bg-amber-400/20 text-amber-100">
-                      #{slide.rank} Ranker
-                    </Badge>
-                    <h2 className="mt-6 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
-                      {slide.studentName}
-                    </h2>
-                    <p className="mt-3 text-lg text-slate-100/90">
-                      {slide.examName || "Board Examination"} -{" "}
-                      {slide.className || `Class ${slide.year}`}
-                    </p>
-                    <div className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
-                      <StatPill label="Hall Ticket" value={slide.hallTicket || "--"} />
-                      <StatPill label="Marks" value={`${slide.score} Marks`} />
-                      <StatPill
-                        label="Percentage"
-                        value={
-                          slide.percentage !== undefined && slide.percentage !== null
-                            ? `${(Math.round(slide.percentage * 100) / 100).toFixed(2)}%`
-                            : "NA"
-                        }
-                      />
-                    </div>
-                    <div className="mt-8 flex flex-wrap gap-4">
-                      <Button size="lg" className="rounded-full px-8" asChild>
-                        <a
-                          href={`/results?hallTicket=${encodeURIComponent(
-                            slide.hallTicket || "",
-                          )}&class=${encodeURIComponent(slide.className || "")}`}
-                        >
-                          View Result
-                        </a>
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        className="rounded-full border border-white/30 bg-transparent px-8 text-white hover:bg-white/10"
-                        size="lg"
-                        asChild
-                      >
-                        <a href="/rankers">Open Celebration Page</a>
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="absolute -left-10 top-8 hidden h-32 w-32 items-center justify-center rounded-full border border-white/30 bg-white/15 text-4xl font-black text-white shadow-2xl backdrop-blur lg:flex z-30">
-                    #{slide.rank}
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-950/20 to-transparent" />
+                  <SchoolLogo
+                    size={74}
+                    className="absolute top-6 left-6 rounded-full border-4 border-white/70 bg-white/95 p-2 shadow-2xl"
+                  />
+                  <div className="absolute top-6 left-28 rounded-full border border-white/30 bg-white/90 px-5 py-1.5 text-base font-semibold text-slate-900 shadow-xl">
+                    #{slide.rank} Ranker
                   </div>
                 </div>
-                <aside className="relative flex flex-col justify-between rounded-t-3xl bg-white/5 p-6 backdrop-blur">
-                  <div className="space-y-4">
+                <div className="flex flex-col gap-6 px-6 py-10 sm:px-10">
+                  <div className="space-y-3">
                     <Badge variant="secondary" className="w-fit bg-white/15 text-slate-100">
                       Spotlighted Ranker
                     </Badge>
-                    <p className="text-sm text-slate-200/90">
-                      Powered directly by admin results uploads. Every slide is sourced from
-                      your structured database without manual duplication.
+                    <h2 className="text-3xl font-bold leading-tight md:text-4xl">{slide.studentName}</h2>
+                    <p className="text-lg text-slate-200/90">
+                      {slide.examName || "Board Examination"} • {slide.className || `Class ${slide.year}`}
+                    </p>
+                    <p className="text-sm text-white/70">
+                      Verified directly from the admin uploads — no manual edits, just live academic data.
                     </p>
                   </div>
-                  <div className="space-y-4 rounded-2xl bg-white/5 p-5">
-                    <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-                      <Medal className="h-5 w-5 text-amber-300" />
-                      Performance Snapshot
-                    </h3>
-                    <ul className="space-y-3 text-sm">
-                      <li className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-white/70">Academic Year</span>
-                        <span className="font-semibold text-white">
-                          {slide.year}
-                        </span>
-                      </li>
-                      <li className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-white/70">Status</span>
-                        <span className="font-semibold text-emerald-300">PASSED</span>
-                      </li>
-                      <li className="flex items-center justify-between">
-                        <span className="text-white/70">Source</span>
-                        <span className="font-semibold text-white">
-                          {(slide as any).source === "auto" ? "Auto-synced" : "Manual"}
-                        </span>
-                      </li>
-                    </ul>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <StatPill label="Hall Ticket" value={slide.hallTicket || "--"} />
+                    <StatPill label="Marks" value={`${slide.score} Marks`} />
+                    <StatPill
+                      label="Percentage"
+                      value={
+                        slide.percentage !== undefined && slide.percentage !== null
+                          ? `${(Math.round(slide.percentage * 100) / 100).toFixed(2)}%`
+                          : "NA"
+                      }
+                    />
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-amber-400/20 to-amber-600/30 p-5 text-white">
-                    <div className="flex items-center gap-3">
-                      <Crown className="h-8 w-8 text-amber-200" />
-                      <div>
-                        <p className="text-sm uppercase tracking-[0.4em] text-white/80">
-                          Honors Board
-                        </p>
-                        <p className="text-2xl font-bold">
-                          #{slide.rank} Excellence Award
-                        </p>
-                      </div>
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                        <Medal className="h-5 w-5 text-amber-300" />
+                        Performance Snapshot
+                      </h3>
+                      <ul className="mt-3 space-y-3 text-sm">
+                        <li className="flex items-center justify-between border-b border-white/10 pb-2 text-white/70">
+                          <span>Academic Year</span>
+                          <span className="font-semibold text-white">{slide.year}</span>
+                        </li>
+                        <li className="flex items-center justify-between border-b border-white/10 pb-2 text-white/70">
+                          <span>Status</span>
+                          <span className="font-semibold text-emerald-300">PASSED</span>
+                        </li>
+                        <li className="flex items-center justify-between text-white/70">
+                          <span>Source</span>
+                          <span className="font-semibold text-white">
+                            {(slide as any).source === "auto" ? "Auto-synced" : "Manual"}
+                          </span>
+                        </li>
+                      </ul>
                     </div>
-                    <p className="mt-3 text-sm text-white/80">
-                      Appears on homepage hero + celebration wall automatically whenever
-                      results are imported.
-                    </p>
+                    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-amber-400/20 to-amber-600/30 p-5 text-white">
+                      <div className="flex items-center gap-3">
+                        <Crown className="h-7 w-7 text-amber-100" />
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.5em] text-white/80">Honors Board</p>
+                          <p className="text-2xl font-bold">#{slide.rank} Excellence</p>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm text-white/85">
+                        Featured on the homepage slider and celebration page automatically whenever the admin publishes results.
+                      </p>
+                    </div>
                   </div>
-                </aside>
+                </div>
               </article>
             </CarouselItem>
           ))}

@@ -16,7 +16,7 @@ import {
   SidebarFooter,
   useSidebar
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Megaphone, Users, CalendarDays, Medal, LogOut, Loader2, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, CalendarDays, Medal, LogOut, Loader2, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal, Quote } from "lucide-react";
 import { SchoolLogo } from "@/components/SchoolLogo";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -41,6 +41,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { title: "Announcements", url: "/admin/announcements", icon: Megaphone },
     { title: "Academics", url: "/admin/academics", icon: BookOpen },
     { title: "Student Life", url: "/admin/student-life", icon: Heart },
+    { title: "Head Master", url: "/admin/headmaster", icon: Quote },
     { title: "Faculty Profiles", url: "/admin/faculty", icon: Users },
     { title: "Events", url: "/admin/events", icon: CalendarDays },
     { title: "Rankers", url: "/admin/rankers", icon: Medal },
@@ -95,7 +96,7 @@ function AdminChrome({
           <div className="flex items-center gap-3 px-2 text-primary">
             <SchoolLogo size={48} className="h-12 w-12 rounded-full bg-white/95 p-1 shadow-md" />
             <div className="font-bold font-serif leading-tight text-sidebar-foreground">
-              <div>Montessori</div>
+              <div>Montessori EM HS</div>
               <div className="text-xs text-white/70 font-sans tracking-wide">Admin Portal</div>
             </div>
           </div>

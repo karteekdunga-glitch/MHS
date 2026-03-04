@@ -19,6 +19,8 @@ import {
   type InsertStudentLife,
   type StudentLifeImage,
   type InsertStudentLifeImage,
+  type HeadmasterMessage,
+  type InsertHeadmasterMessage,
   type Result,
   type InsertResult,
   type Admission,
@@ -57,6 +59,7 @@ const COLLECTION_PATHS = {
   rankers: "rankers",
   academics: "academics",
   studentLife: "studentLife",
+  headmasterMessages: "headmasterMessages",
   results: "results",
   admissions: "admissions",
   academicDocuments: "academicDocuments",
@@ -189,6 +192,15 @@ export interface IStorage {
   ): Promise<StudentLifeImage[]>;
   removeStudentLifeImages(imageIds: number[]): Promise<StudentLifeImage[]>;
   deleteStudentLife(id: number): Promise<void>;
+
+  getHeadmasterMessages(status?: string): Promise<HeadmasterMessage[]>;
+  getHeadmasterMessage(id: number): Promise<HeadmasterMessage | undefined>;
+  createHeadmasterMessage(data: InsertHeadmasterMessage): Promise<HeadmasterMessage>;
+  updateHeadmasterMessage(
+    id: number,
+    data: Partial<InsertHeadmasterMessage>,
+  ): Promise<HeadmasterMessage>;
+  deleteHeadmasterMessage(id: number): Promise<void>;
 
   getResults(rollNo?: string, className?: string): Promise<Result[]>;
   createResults(data: InsertResult[]): Promise<void>;
@@ -687,6 +699,53 @@ class FirebaseStorage implements IStorage {
 
   async deleteStudentLife(id: number): Promise<void> {
     await removeRecord("studentLife", id);
+  }
+
+  async getHeadmasterMessages(status?: string): Promise<HeadmasterMessage[]> {
+    const records = await listRecords<HeadmasterMessage>("headmasterMessages");
+    const sorted = records.sort((a, b) => {
+      const aTime = new Date((a.updatedAt ?? a.createdAt ?? 0) as any).getTime();
+      const bTime = new Date((b.updatedAt ?? b.createdAt ?? 0) as any).getTime();
+      return bTime - aTime;
+    });
+    return status ? sorted.filter((item) => item.status === status) : sorted;
+  }
+
+  async getHeadmasterMessage(id: number): Promise<HeadmasterMessage | undefined> {
+    return (await getRecordById<HeadmasterMessage>("headmasterMessages", id)) as
+      | HeadmasterMessage
+      | undefined;
+  }
+
+  async createHeadmasterMessage(data: InsertHeadmasterMessage): Promise<HeadmasterMessage> {
+    const id = generateNumericId();
+    const now = new Date().toISOString() as unknown as Date;
+    const record: HeadmasterMessage = {
+      id,
+      status: data.status ?? "draft",
+      createdAt: now,
+      updatedAt: now,
+      ...data,
+    };
+    await saveRecord("headmasterMessages", record);
+    return record;
+  }
+
+  async updateHeadmasterMessage(
+    id: number,
+    data: Partial<InsertHeadmasterMessage>,
+  ): Promise<HeadmasterMessage> {
+    await updateRecord("headmasterMessages", id, {
+      ...data,
+      updatedAt: new Date().toISOString() as unknown as Date,
+    });
+    const updated = await this.getHeadmasterMessage(id);
+    if (!updated) throw new Error("Headmaster message not found");
+    return updated;
+  }
+
+  async deleteHeadmasterMessage(id: number): Promise<void> {
+    await removeRecord("headmasterMessages", id);
   }
 
   // Results

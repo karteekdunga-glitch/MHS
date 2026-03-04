@@ -73,7 +73,7 @@ export default function Events() {
             School Events & Celebrations
           </h1>
           <p className="text-lg text-primary-100 max-w-2xl">
-            Catch every competition, campus festival, and leadership program curated by Montessori High School.
+            Catch every competition, campus festival, and leadership program curated by Montessori EM High School.
           </p>
           <div className="flex flex-wrap gap-4 text-primary-100">
             <div className="flex items-center gap-2">

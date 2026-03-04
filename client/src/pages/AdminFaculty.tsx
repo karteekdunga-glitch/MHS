@@ -32,6 +32,7 @@ import { Loader2, Plus, Users, Pencil, Trash2, UploadCloud } from "lucide-react"
 import Cropper, { type Area } from "react-easy-crop";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { cropImageToFile } from "@/lib/crop-image";
 
 const displayValue = (value?: string | number | null) => {
   if (value === null || value === undefined) return "-";
@@ -188,7 +189,7 @@ export default function AdminFaculty() {
     }
     try {
       setIsApplyingCrop(true);
-      const croppedFile = await cropImage(
+      const croppedFile = await cropImageToFile(
         preview,
         croppedAreaPixels,
         selectedFile?.name ?? "faculty-photo.jpg",
@@ -609,50 +610,3 @@ export default function AdminFaculty() {
     </AdminLayout>
   );
 }
-
-async function createImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", (error) => reject(error));
-    image.crossOrigin = "anonymous";
-    image.src = url;
-  });
-}
-
-async function cropImage(imageSrc: string, cropArea: Area, fileName: string, mimeType: string): Promise<File> {
-  const image = await createImage(imageSrc);
-  const canvas = document.createElement("canvas");
-  canvas.width = cropArea.width;
-  canvas.height = cropArea.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Unable to access drawing context");
-  }
-  ctx.drawImage(
-    image,
-    cropArea.x,
-    cropArea.y,
-    cropArea.width,
-    cropArea.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
-  );
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("Canvas is empty"));
-          return;
-        }
-        resolve(new File([blob], fileName, { type: mimeType }));
-      },
-      mimeType,
-      0.95,
-    );
-  });
-}
-

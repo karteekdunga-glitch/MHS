@@ -12,7 +12,7 @@ export function SchoolLogo({ size = 64, className }: SchoolLogoProps) {
       src="/logo.png"
       width={size}
       height={size}
-      alt="Montessori English Medium School crest"
+      alt="Montessori EM High School crest"
       draggable={false}
       className={cn(
         "object-contain select-none pointer-events-none drop-shadow-sm",
@@ -21,4 +21,3 @@ export function SchoolLogo({ size = 64, className }: SchoolLogoProps) {
     />
   );
 }
-

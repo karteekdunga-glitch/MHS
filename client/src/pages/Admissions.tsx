@@ -80,7 +80,7 @@ export default function Admissions() {
       <main className="flex-1 container mx-auto px-4 py-12 space-y-10">
         <section className="text-center space-y-4 max-w-3xl mx-auto">
           <p className="text-sm uppercase tracking-[0.4em] text-primary">Admissions 2026</p>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900">Secure a Seat at Montessori High School</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900">Secure a Seat at Montessori EM High School</h1>
           <p className="text-lg text-slate-600">
             Complete the enquiry form below and our admissions counsellors will guide you through campus tours, documentation,
             and joining formalities.
@@ -146,7 +146,7 @@ export default function Admissions() {
                     {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Submit Enquiry"}
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    By submitting you consent to Montessori High School contacting you via phone or email.
+                    By submitting you consent to Montessori EM High School contacting you via phone or email.
                   </p>
                 </div>
               </form>
@@ -180,7 +180,7 @@ export default function Admissions() {
                   </p>
                   <p className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" />
-                    Montessori High School, Road No. 3, Jubilee Hills, Hyderabad.
+                    Montessori EM High School, Road No. 3, Jubilee Hills, Hyderabad.
                   </p>
                 </div>
               </CardContent>

@@ -23,6 +23,7 @@ import type {
   InsertStudentLife,
   InsertFaculty,
   InsertEvent,
+  InsertHeadmasterMessage,
 } from "@shared/schema";
 import { admissionStatusValues, eventStatusValues } from "@shared/schema";
 
@@ -133,7 +134,8 @@ export async function registerRoutes(
   const facultyUploadsDir = path.join(uploadsRootDir, "faculty");
   const eventUploadsDir = path.join(uploadsRootDir, "events");
   const rankerUploadsDir = path.join(uploadsRootDir, "rankers");
-  [uploadsRootDir, academicUploadsDir, studentLifeUploadsDir, facultyUploadsDir, eventUploadsDir, rankerUploadsDir].forEach((dir) =>
+  const headmasterUploadsDir = path.join(uploadsRootDir, "headmaster");
+  [uploadsRootDir, academicUploadsDir, studentLifeUploadsDir, facultyUploadsDir, eventUploadsDir, rankerUploadsDir, headmasterUploadsDir].forEach((dir) =>
     fs.mkdirSync(dir, { recursive: true }),
   );
 
@@ -200,6 +202,18 @@ export async function registerRoutes(
   const rankerImageUpload = multer({
     storage: multer.diskStorage({
       destination: (_req, _file, cb) => cb(null, rankerUploadsDir),
+      filename: (_req, file, cb) => {
+        const safeName = file.originalname.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9.\-_]/g, "");
+        cb(null, `${Date.now()}-${safeName}`);
+      },
+    }),
+    fileFilter: imageFileFilter,
+    limits: { files: 1, fileSize: 5 * 1024 * 1024 },
+  });
+
+  const headmasterImageUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, headmasterUploadsDir),
       filename: (_req, file, cb) => {
         const safeName = file.originalname.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9.\-_]/g, "");
         cb(null, `${Date.now()}-${safeName}`);
@@ -1030,6 +1044,137 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  // Head Master Words
+  app.get(api.headmaster.list.path, async (req, res) => {
+    const status = typeof req.query.status === "string" ? req.query.status : undefined;
+    const messages = await storage.getHeadmasterMessages(status);
+    res.json(messages);
+  });
+  app.post(
+    api.headmaster.create.path,
+    requireAuth,
+    headmasterImageUpload.single("image"),
+    async (req, res) => {
+      try {
+        const payload = parseJsonPayload(req.body);
+        const input = api.headmaster.create.input.parse(payload);
+        const assetBaseUrl = getAssetBaseUrl(req);
+        const sourceType = input.imageSourceType ?? "upload";
+        if (sourceType === "upload" && !req.file) {
+          return res.status(400).json({ message: "Upload a portrait for the Head Master." });
+        }
+        if (sourceType === "url" && !input.imageUrl) {
+          return res.status(400).json({ message: "Provide an image URL for the Head Master." });
+        }
+        let uploadedImage:
+          | {
+              fileUrl: string;
+              filePath: string | null;
+            }
+          | null = null;
+        if (sourceType === "upload" && req.file) {
+          uploadedImage = await persistUploadedFile(req.file, {
+            bucketFolder: "headmaster",
+            entityId: input.headName,
+            assetBaseUrl,
+          });
+        }
+        const record = await storage.createHeadmasterMessage({
+          headName: input.headName.trim(),
+          role: input.role?.trim() || "Correspondent",
+          title: input.title.trim(),
+          highlightQuote: input.highlightQuote?.trim() || null,
+          message: input.message.trim(),
+          status: input.status ?? "draft",
+          imageSourceType: sourceType,
+          imageUrl:
+            sourceType === "upload"
+              ? uploadedImage?.fileUrl ?? null
+              : input.imageUrl?.trim() || null,
+          imagePath: sourceType === "upload" ? uploadedImage?.filePath ?? null : null,
+        } as InsertHeadmasterMessage);
+        res.status(201).json(record);
+      } catch (err) {
+        cleanupUploadedFiles(req.file);
+        handleZodError(res, err);
+      }
+    },
+  );
+  app.put(
+    api.headmaster.update.path,
+    requireAuth,
+    headmasterImageUpload.single("image"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      try {
+        const existing = await storage.getHeadmasterMessage(id);
+        if (!existing) {
+          cleanupUploadedFiles(req.file);
+          return res.status(404).json({ message: "Head Master message not found" });
+        }
+        const payload = parseJsonPayload(req.body);
+        const input = api.headmaster.update.input.parse(payload);
+        const updates: Partial<InsertHeadmasterMessage> = {};
+        if (typeof input.headName === "string") updates.headName = input.headName.trim();
+        if (typeof input.role === "string") updates.role = input.role.trim();
+        if (typeof input.title === "string") updates.title = input.title.trim();
+        if (typeof input.highlightQuote !== "undefined") {
+          updates.highlightQuote = input.highlightQuote ? input.highlightQuote.trim() : null;
+        }
+        if (typeof input.message === "string") updates.message = input.message.trim();
+        if (typeof input.status === "string") updates.status = input.status;
+        const assetBaseUrl = getAssetBaseUrl(req);
+        const nextSourceType = input.imageSourceType ?? existing.imageSourceType ?? "upload";
+        let nextImageUrl = existing.imageUrl ?? null;
+        let nextImagePath = existing.imagePath ?? null;
+        if (nextSourceType === "upload") {
+          if (req.file) {
+            const uploaded = await persistUploadedFile(req.file, {
+              bucketFolder: "headmaster",
+              entityId: existing.headName || id,
+              assetBaseUrl,
+            });
+            if (existing.imageSourceType === "upload") {
+              deleteFileSafe(existing.imagePath);
+            }
+            nextImageUrl = uploaded.fileUrl;
+            nextImagePath = uploaded.filePath;
+          } else if (existing.imageSourceType !== "upload") {
+            return res.status(400).json({ message: "Upload a portrait when switching to uploaded source." });
+          }
+        } else {
+          const newUrl = input.imageUrl?.trim();
+          if (!newUrl) {
+            return res.status(400).json({ message: "Provide an image URL for the Head Master portrait." });
+          }
+          if (existing.imageSourceType === "upload") {
+            deleteFileSafe(existing.imagePath);
+          }
+          nextImageUrl = newUrl;
+          nextImagePath = null;
+        }
+        updates.imageSourceType = nextSourceType;
+        updates.imageUrl = nextImageUrl;
+        updates.imagePath = nextImagePath;
+        const updated = await storage.updateHeadmasterMessage(id, updates);
+        res.json(updated);
+      } catch (err) {
+        cleanupUploadedFiles(req.file);
+        handleZodError(res, err);
+      }
+    },
+  );
+  app.delete(api.headmaster.delete.path, requireAuth, async (req, res) => {
+    const id = Number(req.params.id);
+    const existing = await storage.getHeadmasterMessage(id);
+    if (!existing) {
+      return res.status(404).json({ message: "Head Master message not found" });
+    }
+    await storage.deleteHeadmasterMessage(id);
+    deleteFileSafe(existing.imagePath);
+    res.status(204).end();
+  });
+
   // Results
   app.get(api.results.list.path, async (req, res) => {
     const rollNo = req.query.rollNo as string | undefined;
@@ -1162,7 +1307,7 @@ async function seedDatabase() {
   if (existingAnnouncements.length === 0) {
     await storage.createAnnouncement({
       title: "Welcome back to school!",
-      content: "Montessori High School welcomes all students for the new academic year.",
+      content: "Montessori EM High School welcomes all students for the new academic year.",
       status: "published",
     });
     await storage.createAnnouncement({
@@ -1183,6 +1328,23 @@ async function seedDatabase() {
       startDateTime: new Date(Date.now() + 86400000 * 7),
       endDateTime: new Date(Date.now() + 86400000 * 7 + 3 * 60 * 60 * 1000),
       publishAt: new Date(),
+    });
+  }
+
+  const existingHeadMessages = await storage.getHeadmasterMessages();
+  if (existingHeadMessages.length === 0) {
+    await storage.createHeadmasterMessage({
+      headName: "Sri D. Karthik",
+      role: "Correspondent & Head Master",
+      title: "Rooted in Values, Ready for the Future",
+      highlightQuote: "Every child deserves a guide who believes in their limitless potential.",
+      message:
+        "At Montessori EM High School we blend tradition with innovation. Our mission is to nurture confident learners who are courageous, compassionate, and creative. I invite every student to ask bold questions, care for the community, and chase excellence with humility.",
+      status: "published",
+      imageSourceType: "url",
+      imageUrl:
+        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
+      imagePath: null,
     });
   }
 }

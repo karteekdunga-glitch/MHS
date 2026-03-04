@@ -24,7 +24,7 @@ export function Footer() {
       <div aria-hidden className="absolute inset-0">
         <img
           src={FOOTER_BG}
-          alt="Montessori English Medium School campus"
+          alt="Montessori EM High School campus"
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-[2px] mix-blend-multiply" />
@@ -36,7 +36,7 @@ export function Footer() {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-white">
                 <SchoolLogo size={48} className="h-12 w-12 rounded-full bg-white p-1 shadow" />
-                <h2 className="text-xl font-bold font-serif">Montessori English Medium School</h2>
+                <h2 className="text-xl font-bold font-serif">Montessori EM High School</h2>
               </div>
               <p className="text-sm leading-relaxed max-w-xs">
                 Empowering students with knowledge, character, and vision for a brighter tomorrow. Excellence in education since establishment.
@@ -74,7 +74,7 @@ export function Footer() {
                   </span>
                   <div className="rounded-2xl overflow-hidden shadow-xl border border-white/20">
                     <iframe
-                      title="Montessori English Medium School Map"
+                      title="Montessori EM High School Map"
                       src={MAP_EMBED_URL}
                       loading="lazy"
                       allowFullScreen
@@ -88,7 +88,7 @@ export function Footer() {
                   <a
                     href={`tel:${SCHOOL_PHONE_TEL}`}
                     className="hover:text-accent transition-colors"
-                    aria-label={`Call Montessori English Medium School at ${SCHOOL_PHONE_DISPLAY}`}
+                    aria-label={`Call Montessori EM High School at ${SCHOOL_PHONE_DISPLAY}`}
                   >
                     {SCHOOL_PHONE_DISPLAY}
                   </a>
@@ -103,7 +103,7 @@ export function Footer() {
             </div>
           </div>
           <div className="border-t border-white/20 pt-6 text-center text-sm text-white/80">
-            <p>© {new Date().getFullYear()} Montessori English Medium School. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Montessori EM High School. All rights reserved.</p>
           </div>
         </div>
       </div>
