@@ -204,7 +204,12 @@ export interface IStorage {
 
   getResults(rollNo?: string, className?: string): Promise<Result[]>;
   createResults(data: InsertResult[]): Promise<void>;
+  replaceResults(data: InsertResult[]): Promise<void>;
   deleteResult(id: number): Promise<void>;
+  deleteResults(ids: number[]): Promise<void>;
+  updateResultsLabel(ids: number[], label: string): Promise<void>;
+  getResult(id: number): Promise<Result | undefined>;
+  updateResult(id: number, data: Partial<InsertResult>): Promise<Result>;
 
   getAdmissions(filters?: AdmissionFilters): Promise<Admission[]>;
   getAdmission(id: number): Promise<Admission | undefined>;
@@ -496,9 +501,6 @@ class FirebaseStorage implements IStorage {
     ]);
     const autoRankers = existingRankers.filter((ranker) => ranker.source === "auto");
     if (results.length === 0) {
-      if (autoRankers.length) {
-        await Promise.all(autoRankers.map((ranker) => removeRecord("rankers", ranker.id)));
-      }
       return;
     }
 
@@ -769,7 +771,21 @@ class FirebaseStorage implements IStorage {
   async createResults(data: InsertResult[]): Promise<void> {
     if (!data.length) return;
     const existing = await listRecords<Result>("results");
-    const existingByRoll = new Map(existing.map((record) => [record.rollNo, record]));
+    const getUploadBatch = (payload?: Record<string, any>) => {
+      if (!payload || typeof payload !== "object") return "";
+      const raw = payload.uploadBatchId as string | undefined;
+      return typeof raw === "string" ? raw.trim() : "";
+    };
+    const getResultKey = (rollNo: string, payload?: Record<string, any>) => {
+      const batchId = getUploadBatch(payload) || "default";
+      return `${rollNo}::${batchId}`;
+    };
+    const existingByKey = new Map(
+      existing.map((record) => {
+        const payload = isPlainObject(record.data) ? (record.data as Record<string, any>) : undefined;
+        return [getResultKey(record.rollNo, payload), record];
+      }),
+    );
 
     for (const entry of data) {
       const normalized = {
@@ -780,7 +796,7 @@ class FirebaseStorage implements IStorage {
           fallbackYear: entry.year,
         }),
       };
-      const current = existingByRoll.get(entry.rollNo);
+      const current = existingByKey.get(getResultKey(entry.rollNo, normalized.data as Record<string, any>));
       if (current) {
         await updateRecord("results", current.id, normalized);
       } else {
@@ -791,9 +807,52 @@ class FirebaseStorage implements IStorage {
     await this.syncRankersFromResults();
   }
 
+  async replaceResults(data: InsertResult[]): Promise<void> {
+    const existing = await listRecords<Result>("results");
+    if (existing.length) {
+      await Promise.all(existing.map((record) => removeRecord("results", record.id)));
+    }
+    await this.createResults(data);
+  }
+
   async deleteResult(id: number): Promise<void> {
     await removeRecord("results", id);
+  }
+
+  async deleteResults(ids: number[]): Promise<void> {
+    const uniqueIds = Array.from(new Set(ids)).filter((id) => Number.isFinite(id));
+    await Promise.all(uniqueIds.map((id) => removeRecord("results", id)));
+  }
+
+  async updateResultsLabel(ids: number[], label: string): Promise<void> {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    const uniqueIds = new Set(ids.filter((id) => Number.isFinite(id)));
+    if (uniqueIds.size === 0) return;
+    const records = await listRecords<Result>("results");
+    const updates = records.filter((record) => uniqueIds.has(record.id));
+    await Promise.all(
+      updates.map((record) =>
+        updateRecord("results", record.id, {
+          data: {
+            ...(isPlainObject(record.data) ? (record.data as Record<string, any>) : {}),
+            uploadLabel: trimmed,
+          },
+        }),
+      ),
+    );
+  }
+
+  async getResult(id: number): Promise<Result | undefined> {
+    return (await getRecordById<Result>("results", id)) as Result | undefined;
+  }
+
+  async updateResult(id: number, data: Partial<InsertResult>): Promise<Result> {
+    await updateRecord("results", id, data);
+    const updated = await this.getResult(id);
+    if (!updated) throw new Error("Result not found");
     await this.syncRankersFromResults();
+    return updated;
   }
 
   // Admissions
@@ -921,9 +980,10 @@ class FirebaseStorage implements IStorage {
     if (existing.length > 0) {
       return existing[0];
     }
+    const resultRecords = await listRecords<Result>("results");
     const defaults: SitePreferences = {
       id: generateNumericId(),
-      showResultsInNav: true,
+      showResultsInNav: resultRecords.length > 0,
       updatedAt: new Date().toISOString() as unknown as Date,
     };
     await saveRecord("sitePreferences", defaults);

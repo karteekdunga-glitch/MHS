@@ -33,6 +33,7 @@ export default function Academics() {
   const [subject, setSubject] = useState("");
   const [classLevel, setClassLevel] = useState("");
   const [academicYear, setAcademicYear] = useState("");
+  const [calendarClassLevel, setCalendarClassLevel] = useState("");
   const [calendarYear, setCalendarYear] = useState("");
   const [syllabusFilters, setSyllabusFilters] = useState<AcademicDocFilters | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<AcademicDocFilters | null>(null);
@@ -113,8 +114,8 @@ export default function Academics() {
 
   const handleCalendarSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!calendarYear) {
-      setCalendarError("Select an academic year to view the calendar.");
+    if (!calendarClassLevel || !calendarYear) {
+      setCalendarError("Select class and academic year to view the calendar.");
       setCalendarFilters(null);
       return;
     }
@@ -122,6 +123,7 @@ export default function Academics() {
     setCalendarFilters({
       status: "published",
       docType: "calendar",
+      classLevel: calendarClassLevel,
       academicYear: calendarYear,
     });
   };
@@ -306,6 +308,24 @@ export default function Academics() {
             </CardHeader>
             <CardContent className="space-y-4">
               <form onSubmit={handleCalendarSearch} className="grid grid-cols-1 gap-3">
+                <Select value={calendarClassLevel} onValueChange={setCalendarClassLevel}>
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Class / Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classOptions.length === 0 ? (
+                      <SelectItem value="__no_calendar_classes" disabled>
+                        No classes available
+                      </SelectItem>
+                    ) : (
+                      classOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
                 <Select value={calendarYear} onValueChange={setCalendarYear}>
                   <SelectTrigger className="h-12">
                     <SelectValue placeholder="Academic Year" />
@@ -359,6 +379,9 @@ export default function Academics() {
                           <CardTitle>{activeCalendarDoc.title}</CardTitle>
                         </CardHeader>
                         <CardContent>
+                          <p className="text-sm text-muted-foreground">
+                            Class: {activeCalendarDoc.classLevel || calendarClassLevel}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             Academic Year: {activeCalendarDoc.academicYear}
                           </p>

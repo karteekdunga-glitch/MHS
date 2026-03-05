@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import * as XLSX from "xlsx";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useResults, useBulkCreateResults, useDeleteResult } from "@/hooks/use-additional-content";
+import { useResults, useBulkCreateResults, useDeleteResult, useBulkDeleteResults, useUpdateResultsLabel, useUpdateResult } from "@/hooks/use-additional-content";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { useSitePreferences, useUpdateSitePreferences } from "@/hooks/use-site-preferences";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   SubjectResult,
   CLASS_OPTIONS,
@@ -25,7 +26,7 @@ import {
   inferSubjectsFromRecord,
   slugifyClass,
 } from "@/lib/results";
-import { Upload, Search, Trash2, Loader2, FileDown, Eye, Plus, Minus } from "lucide-react";
+import { Upload, Search, Trash2, Loader2, FileDown, Eye, Plus, Pencil, Check, X, Minus, ArrowRight, ChevronUp } from "lucide-react";
 
 type ResultRecord = {
   id: number;
@@ -80,11 +81,20 @@ export default function AdminResults() {
   const [query, setQuery] = useState("");
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingResult, setEditingResult] = useState<ResultRecord | null>(null);
   const [lastUploadSummary, setLastUploadSummary] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
+  const [groupLabelDraft, setGroupLabelDraft] = useState("");
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
   const { data: results = [], isLoading } = useResults();
   const bulkCreate = useBulkCreateResults();
   const deleteResult = useDeleteResult();
+  const bulkDeleteResults = useBulkDeleteResults();
+  const updateResultsLabel = useUpdateResultsLabel();
+  const updateResult = useUpdateResult();
   const { data: sitePrefs, isLoading: isPrefsLoading } = useSitePreferences();
   const updateSitePrefs = useUpdateSitePreferences();
   const { toast } = useToast();
@@ -100,6 +110,31 @@ export default function AdminResults() {
     );
   }, [query, results]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => results.some((row: ResultRecord) => row.id === id)));
+  }, [results]);
+
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const groupedResults = useMemo(() => {
+    const groups = new Map<string, { label: string; rows: ResultRecord[] }>();
+    filteredResults.forEach((row) => {
+      const label =
+        (row.data?.uploadLabel as string | undefined) ||
+        (row.data?.sourceSheet as string | undefined) ||
+        "Results";
+      const batchId =
+        (row.data?.uploadBatchId as string | undefined) ||
+        (row.data?.sourceSheet as string | undefined) ||
+        label;
+      if (!groups.has(batchId)) {
+        groups.set(batchId, { label, rows: [] });
+      }
+      groups.get(batchId)!.rows.push(row);
+    });
+    return Array.from(groups.entries());
+  }, [filteredResults]);
+
   const isUploading = isParsingFile || bulkCreate.isPending;
 
   const handleDeleteResult = (id: number) => {
@@ -112,6 +147,41 @@ export default function AdminResults() {
         toast({ variant: "destructive", title: "Delete failed", description: message });
       },
       onSettled: () => setDeletingId(null),
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Delete ${selectedIds.length} selected result${selectedIds.length === 1 ? "" : "s"}?`)) return;
+    bulkDeleteResults.mutate(selectedIds, {
+      onSuccess: () => {
+        toast({ title: "Results deleted", description: `${selectedIds.length} result${selectedIds.length === 1 ? "" : "s"} removed.` });
+        setSelectedIds([]);
+      },
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "Unable to delete selected results";
+        toast({ variant: "destructive", title: "Bulk delete failed", description: message });
+      },
+    });
+  };
+
+  const handleSelectAll = (ids: number[], checked: boolean | "indeterminate") => {
+    if (checked) {
+      const next = new Set(selectedIds);
+      ids.forEach((id) => next.add(id));
+      setSelectedIds(Array.from(next));
+    } else {
+      const visibleSet = new Set(ids);
+      setSelectedIds((prev) => prev.filter((id) => !visibleSet.has(id)));
+    }
+  };
+
+  const handleSelectRow = (id: number, checked: boolean | "indeterminate") => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        return prev.includes(id) ? prev : [...prev, id];
+      }
+      return prev.filter((rowId) => rowId !== id);
     });
   };
 
@@ -214,6 +284,21 @@ export default function AdminResults() {
                 }}
               />
             </Dialog>
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              {editingResult && (
+                <ManualResultDialog
+                  title="Edit Result"
+                  isSubmitting={updateResult.isPending}
+                  initialResult={editingResult}
+                  onSubmit={async (payload) => {
+                    await updateResult.mutateAsync({ id: editingResult.id, payload });
+                    toast({ title: "Result updated", description: `${payload.studentName} updated successfully.` });
+                    setEditOpen(false);
+                    setEditingResult(null);
+                  }}
+                />
+              )}
+            </Dialog>
           </div>
         </div>
 
@@ -255,7 +340,7 @@ export default function AdminResults() {
             <CardTitle>Manage Results</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -266,94 +351,250 @@ export default function AdminResults() {
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
-              {query && (
-                <Button variant="ghost" onClick={() => setQuery("")}>
-                  Clear
+              <div className="flex flex-wrap items-center gap-2">
+                {query && (
+                  <Button variant="ghost" onClick={() => setQuery("")}>
+                    Clear
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  className="gap-2"
+                  disabled={selectedIds.length === 0 || bulkDeleteResults.isPending}
+                  onClick={handleBulkDelete}
+                >
+                  {bulkDeleteResults.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Delete Selected {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}
                 </Button>
-              )}
+              </div>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Hall Ticket</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Exam</TableHead>
-                  <TableHead>Year</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Summary</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
-                    </TableCell>
-                  </TableRow>
-                ) : filteredResults.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                      {query
-                        ? `No results found for "${query}".`
-                        : "No results uploaded yet. Use the uploader or manual entry button to add the first record."}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredResults.map((result: ResultRecord) => {
-                    const classLabel = resolveClassDisplay(result.data);
-                    const classSlug =
-                      (result.data?.["classSlug"] as string | undefined) || slugifyClass(classLabel);
-                    return (
-                      <TableRow key={result.id}>
-                        <TableCell className="font-semibold">{result.rollNo}</TableCell>
-                        <TableCell>{result.studentName}</TableCell>
-                        <TableCell>{classLabel}</TableCell>
-                        <TableCell>{result.examName}</TableCell>
-                        <TableCell>{result.year}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={result.data?.resultStatus || result.status} />
-                        </TableCell>
-                        <TableCell>
-                          <ResultSummary data={result.data} />
-                        </TableCell>
-                        <TableCell className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                            className="text-primary hover:bg-primary/10"
-                            title="View public page"
-                          >
-                            <Link
-                              href={`/results?hallTicket=${encodeURIComponent(
-                                result.rollNo,
-                              )}&class=${encodeURIComponent(classSlug)}`}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                              "text-destructive hover:text-destructive hover:bg-destructive/10",
-                              deletingId === result.id && "opacity-50",
-                            )}
-                            onClick={() => handleDeleteResult(result.id)}
-                            disabled={deletingId === result.id}
-                          >
-                            {deletingId === result.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+            {isLoading ? (
+              <div className="py-10">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+              </div>
+            ) : filteredResults.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                {query
+                  ? `No results found for "${query}".`
+                  : "No results uploaded yet. Use the uploader or manual entry button to add the first record."}
+              </div>
+            ) : (
+              groupedResults.map(([groupId, group]) => {
+                const groupLabel = group.label;
+                const groupRows = group.rows;
+                const groupIds = groupRows.map((row) => row.id);
+                const allSelected = groupIds.length > 0 && groupIds.every((id) => selectedSet.has(id));
+                const someSelected = groupIds.some((id) => selectedSet.has(id));
+                const isEditing = editingGroup === groupId;
+                const isOpen = openGroups.includes(groupId);
+                const classNames = Array.from(
+                  new Set(
+                    groupRows
+                      .map((row) => resolveClassDisplay(row.data))
+                      .filter((value) => value && value !== "—"),
+                  ),
+                );
+                const years = Array.from(
+                  new Set(
+                    groupRows
+                      .map((row) => row.data?.academicYear || row.year?.toString())
+                      .filter(Boolean) as string[],
+                  ),
+                );
+                return (
+                  <Card key={groupId} className="border border-slate-200 shadow-sm">
+                    <CardHeader className="space-y-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-2">
+                          {isEditing ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Input
+                                value={groupLabelDraft}
+                                onChange={(event) => setGroupLabelDraft(event.target.value)}
+                                className="h-9 max-w-xs"
+                              />
+                              <Button
+                                size="icon"
+                                className="h-9 w-9"
+                                onClick={() => {
+                                  const nextLabel = groupLabelDraft.trim();
+                                  if (!nextLabel) {
+                                    toast({ variant: "destructive", title: "Enter a valid label" });
+                                    return;
+                                  }
+                                  updateResultsLabel.mutate(
+                                    { ids: groupIds, label: nextLabel },
+                                    {
+                                      onSuccess: () => {
+                                        toast({ title: "Label updated" });
+                                        setEditingGroup(null);
+                                      },
+                                      onError: (err) => {
+                                        const message = err instanceof Error ? err.message : "Unable to update label";
+                                        toast({ variant: "destructive", title: "Rename failed", description: message });
+                                      },
+                                    },
+                                  );
+                                }}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-9 w-9"
+                                onClick={() => setEditingGroup(null)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <p className="text-lg font-semibold">{groupLabel}</p>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setEditingGroup(groupId);
+                                  setGroupLabelDraft(groupLabel);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                            {classNames.length > 0 && <span>Class: {classNames.join(", ")}</span>}
+                            {years.length > 0 && <span>Year: {years.join(", ")}</span>}
+                            <span>{groupRows.length} student(s)</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          className="gap-2 text-primary"
+                          onClick={() => {
+                            setOpenGroups((prev) =>
+                              prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId],
+                            );
+                          }}
+                        >
+                          {isOpen ? (
+                            <>
+                              Hide <ChevronUp className="h-4 w-4" />
+                            </>
+                          ) : (
+                            <>
+                              Open <ArrowRight className="h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {isOpen && (
+                      <CardContent className="space-y-3">
+                        <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                              onCheckedChange={(checked) => handleSelectAll(groupIds, checked)}
+                              aria-label={`Select all results for ${groupLabel}`}
+                            />
+                          </TableHead>
+                          <TableHead>Hall Ticket</TableHead>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead>Exam</TableHead>
+                          <TableHead>Year</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Summary</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {groupRows.map((result: ResultRecord) => {
+                          const classLabel = resolveClassDisplay(result.data);
+                          const classSlug =
+                            (result.data?.["classSlug"] as string | undefined) || slugifyClass(classLabel);
+                          return (
+                            <TableRow key={result.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedSet.has(result.id)}
+                                  onCheckedChange={(checked) => handleSelectRow(result.id, checked)}
+                                  aria-label={`Select result ${result.rollNo}`}
+                                />
+                              </TableCell>
+                              <TableCell className="font-semibold">{result.rollNo}</TableCell>
+                              <TableCell>{result.studentName}</TableCell>
+                              <TableCell>{classLabel}</TableCell>
+                              <TableCell>{result.examName}</TableCell>
+                              <TableCell>{result.year}</TableCell>
+                              <TableCell>
+                                <StatusBadge status={result.data?.resultStatus || result.status} />
+                              </TableCell>
+                              <TableCell>
+                                <ResultSummary data={result.data} />
+                              </TableCell>
+                              <TableCell className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-primary hover:bg-primary/10"
+                                  title="Edit result"
+                                  onClick={() => {
+                                    setEditingResult(result);
+                                    setEditOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  asChild
+                                  className="text-primary hover:bg-primary/10"
+                                  title="View public page"
+                                >
+                                  <Link
+                                    href={`/results?hallTicket=${encodeURIComponent(
+                                      result.rollNo,
+                                    )}&class=${encodeURIComponent(classSlug)}`}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Link>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    "text-destructive hover:text-destructive hover:bg-destructive/10",
+                                    (deletingId === result.id || bulkDeleteResults.isPending) && "opacity-50",
+                                  )}
+                                  onClick={() => handleDeleteResult(result.id)}
+                                  disabled={deletingId === result.id || bulkDeleteResults.isPending}
+                                >
+                                  {deletingId === result.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                        </Table>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>
@@ -364,9 +605,13 @@ export default function AdminResults() {
 function ManualResultDialog({
   onSubmit,
   isSubmitting,
+  initialResult,
+  title,
 }: {
   onSubmit: (payload: any) => Promise<void>;
   isSubmitting: boolean;
+  initialResult?: ResultRecord | null;
+  title?: string;
 }) {
   const [form, setForm] = useState<ManualFormState>({
     rollNo: "",
@@ -380,6 +625,41 @@ function ManualResultDialog({
     year: String(new Date().getFullYear()),
   });
   const [subjects, setSubjects] = useState<SubjectFormRow[]>([createSubjectRow()]);
+
+  useEffect(() => {
+    if (!initialResult) return;
+    const data = (initialResult.data ?? {}) as Record<string, any>;
+    const classLabel = resolveClassDisplay(data) || data.className || data.class || "";
+    const classSlug = (data.classSlug as string | undefined) || slugifyClass(classLabel);
+    const academicYear =
+      (data.academicYear as string | undefined) ||
+      (typeof initialResult.year === "number" ? `${initialResult.year - 1}-${initialResult.year}` : "");
+    const subjectRows = (Array.isArray(data.subjects) ? (data.subjects as SubjectResult[]) : inferSubjectsFromRecord(data))
+      .filter((subject) => subject && subject.name)
+      .map((subject) => ({
+        id:
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : Math.random().toString(36).slice(2),
+        name: subject.name,
+        maxMarks: String(subject.maxMarks ?? 100),
+        marksObtained: String(subject.marksObtained ?? ""),
+        grade: subject.grade || "",
+        status: (subject.status as SubjectFormRow["status"]) || (isSubjectFail(subject) ? "Fail" : "Pass"),
+      }));
+    setForm({
+      rollNo: initialResult.rollNo || "",
+      studentName: initialResult.studentName || "",
+      photoUrl: (data.photoUrl as string | undefined) || "",
+      className: classSlug || CLASS_OPTIONS[0]?.value || "",
+      section: (data.section as string | undefined) || "",
+      dob: (data.dob as string | undefined) || "",
+      academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+      examName: initialResult.examName || (data.examName as string | undefined) || "English Medium Board",
+      year: String(initialResult.year || new Date().getFullYear()),
+    });
+    setSubjects(subjectRows.length ? subjectRows : [createSubjectRow()]);
+  }, [initialResult]);
 
   const updateSubject = (id: string, key: keyof SubjectFormRow, value: string) => {
     setSubjects((prev) => prev.map((subject) => (subject.id === id ? { ...subject, [key]: value } : subject)));
@@ -459,7 +739,7 @@ function ManualResultDialog({
   return (
     <DialogContent className="max-w-3xl">
       <DialogHeader>
-        <DialogTitle>Add Result Manually</DialogTitle>
+        <DialogTitle>{title || "Add Result Manually"}</DialogTitle>
         <DialogDescription>Complete the student details and subjects to publish a result immediately.</DialogDescription>
       </DialogHeader>
       <form className="space-y-4 max-h-[70vh] overflow-auto pr-2" onSubmit={handleSubmit}>
@@ -645,25 +925,59 @@ async function parseResultsFile(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase();
   if (extension === "csv") {
     const text = await file.text();
-    return parseCsvText(text);
+    const batchId = createUploadBatchId();
+    return parseCsvText(text, {
+      sourceLabel: file.name.replace(/\.[^.]+$/, ""),
+      sourceWorkbook: file.name.replace(/\.[^.]+$/, ""),
+      batchId,
+    });
   }
 
   if (extension === "xlsx" || extension === "xls") {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array" });
-    const firstSheetName = workbook.SheetNames[0];
-    if (!firstSheetName) {
+    const sheetNames = workbook.SheetNames;
+    if (!sheetNames.length) {
       throw new Error("This workbook does not contain any sheets.");
     }
-    const sheet = workbook.Sheets[firstSheetName];
-    const csvText = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
-    return parseCsvText(csvText);
+    const workbookLabel = file.name.replace(/\.[^.]+$/, "");
+    const results: any[] = [];
+    sheetNames.forEach((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) return;
+      const csvText = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
+      if (!csvText.trim()) return;
+      const batchId = createUploadBatchId();
+      const sourceLabel =
+        sheetNames.length > 1 ? `${workbookLabel} - ${sheetName}` : workbookLabel;
+      const parsed = parseCsvText(csvText, {
+        sourceLabel,
+        sourceSheet: sheetName,
+        sourceWorkbook: workbookLabel,
+        batchId,
+      });
+      results.push(...parsed);
+    });
+    if (results.length === 0) {
+      throw new Error("No valid rows found in this workbook.");
+    }
+    return results;
   }
 
   throw new Error("Please upload a .csv, .xls, or .xlsx file.");
 }
 
-function parseCsvText(text: string) {
+function createUploadBatchId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `batch-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function parseCsvText(
+  text: string,
+  context?: { sourceLabel?: string; sourceSheet?: string; sourceWorkbook?: string; batchId?: string },
+) {
   const rows = text
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -692,7 +1006,7 @@ function parseCsvText(text: string) {
     const examName = rowMap["examName"] || rowMap["Exam"] || "Exam";
     const year = Number(rowMap["year"] || rowMap["Year"]) || new Date().getFullYear();
 
-    payload.push(buildStructuredPayload(rowMap, rollNo, studentName, examName, year));
+    payload.push(buildStructuredPayload(rowMap, rollNo, studentName, examName, year, context));
   });
 
   if (payload.length === 0) {
@@ -708,6 +1022,7 @@ function buildStructuredPayload(
   studentName: string,
   examName: string,
   year: number,
+  context?: { sourceLabel?: string; sourceSheet?: string; sourceWorkbook?: string; batchId?: string },
 ) {
   const sanitizedRow = sanitizeRowRecord(rowRecord);
   const classRaw = extractValue(sanitizedRow, ["class", "className", "standard", "grade"]);
@@ -734,6 +1049,10 @@ function buildStructuredPayload(
       resultStatus,
       subjects,
       photoUrl: photoUrl || sanitizedRow["photoUrl"],
+      uploadLabel: context?.sourceLabel,
+      sourceSheet: context?.sourceSheet,
+      sourceWorkbook: context?.sourceWorkbook,
+      uploadBatchId: context?.batchId,
     },
     fallbackClass: className,
     fallbackYear: year,

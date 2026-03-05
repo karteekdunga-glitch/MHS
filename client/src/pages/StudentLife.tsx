@@ -92,10 +92,10 @@ export default function StudentLife() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid auto-rows-fr grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
               {stories.map((story) => (
                 <div key={story.id} id={`story-${story.id}`}>
-                  <Card className="flex h-full flex-col border-0 shadow-xl">
+                  <Card className="flex flex-col border-0 shadow-xl">
                     <CardHeader className="space-y-2">
                       <div className="flex items-center gap-3 flex-wrap">
                         <Badge variant="secondary" className="capitalize">
@@ -113,7 +113,7 @@ export default function StudentLife() {
                         {story.createdAt ? new Date(story.createdAt).toLocaleDateString() : "—"}
                       </p>
                     </CardHeader>
-                    <CardContent className="flex flex-1 flex-col space-y-4">
+                    <CardContent className="flex flex-col space-y-4">
                       <MediaCarousel images={story.images} />
                       <p className="text-slate-600 leading-relaxed">{story.description}</p>
                     </CardContent>

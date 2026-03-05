@@ -19,26 +19,27 @@ export default function AdminAnnouncements() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ title: "", content: "", status: "draft" });
+  const [formData, setFormData] = useState({ title: "", content: "", status: "draft", link: "" });
 
   const openEdit = (item: any) => {
-    setFormData({ title: item.title, content: item.content, status: item.status });
+    setFormData({ title: item.title, content: item.content, status: item.status, link: item.link || "" });
     setEditingId(item.id);
     setIsOpen(true);
   };
 
   const openCreate = () => {
-    setFormData({ title: "", content: "", status: "draft" });
+    setFormData({ title: "", content: "", status: "draft", link: "" });
     setEditingId(null);
     setIsOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = { ...formData, link: formData.link.trim() || undefined };
     if (editingId) {
-      await updateMutation.mutateAsync({ id: editingId, ...formData });
+      await updateMutation.mutateAsync({ id: editingId, ...payload });
     } else {
-      await createMutation.mutateAsync(formData);
+      await createMutation.mutateAsync(payload);
     }
     setIsOpen(false);
   };
@@ -78,6 +79,14 @@ export default function AdminAnnouncements() {
                     <SelectItem value="published">Published (Visible)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target Link (optional)</Label>
+                <Input
+                  placeholder="/results or /events#schedule"
+                  value={formData.link}
+                  onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                />
               </div>
               <Button type="submit" className="w-full" disabled={createMutation.isPending || updateMutation.isPending}>
                 {(createMutation.isPending || updateMutation.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}

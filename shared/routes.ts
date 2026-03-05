@@ -167,6 +167,15 @@ const sitePreferencesSchema = z.object({
   showResultsInNav: z.boolean(),
 });
 
+const resultsBulkDeleteInput = z.object({
+  ids: z.array(z.number()).min(1),
+});
+
+const resultsLabelInput = z.object({
+  ids: z.array(z.number()).min(1),
+  label: z.string().min(1).max(120),
+});
+
 const facultyBaseInput = z.object({
   name: z.string().min(2),
   role: z.string().min(2),
@@ -483,6 +492,30 @@ export const api = {
       path: '/api/results/bulk' as const,
       input: z.array(insertResultSchema),
       responses: { 201: z.object({ count: z.number() }), 401: errorSchemas.unauthorized },
+    },
+    replace: {
+      method: 'POST' as const,
+      path: '/api/results/replace' as const,
+      input: z.array(insertResultSchema),
+      responses: { 201: z.object({ count: z.number() }), 401: errorSchemas.unauthorized },
+    },
+    bulkDelete: {
+      method: 'POST' as const,
+      path: '/api/results/bulk-delete' as const,
+      input: resultsBulkDeleteInput,
+      responses: { 200: z.object({ count: z.number() }), 401: errorSchemas.unauthorized },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/results/:id' as const,
+      input: insertResultSchema.partial(),
+      responses: { 200: z.custom<typeof results.$inferSelect>(), 404: errorSchemas.notFound },
+    },
+    label: {
+      method: 'POST' as const,
+      path: '/api/results/label' as const,
+      input: resultsLabelInput,
+      responses: { 200: z.object({ count: z.number() }), 401: errorSchemas.unauthorized },
     },
     delete: {
       method: 'DELETE' as const,

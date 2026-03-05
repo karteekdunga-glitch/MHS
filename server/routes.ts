@@ -16,6 +16,7 @@ import {
   deleteStoredAsset,
   getStorageFileHandle,
 } from "./file-storage";
+import { normalizeResultData, slugifyClass } from "@shared/results";
 import type {
   AcademicDocument,
   AdmissionStatus,
@@ -345,6 +346,12 @@ export async function registerRoutes(
 
   app.get(api.sitePreferences.get.path, async (_req, res) => {
     const prefs = await storage.getSitePreferences();
+    if (prefs.showResultsInNav) {
+      const results = await storage.getResults();
+      if (results.length === 0) {
+        return res.json({ showResultsInNav: false });
+      }
+    }
     res.json({ showResultsInNav: prefs.showResultsInNav });
   });
 
@@ -1176,6 +1183,13 @@ export async function registerRoutes(
   });
 
   // Results
+  const hideResultsNavIfEmpty = async () => {
+    const remaining = await storage.getResults();
+    if (remaining.length === 0) {
+      await storage.updateSitePreferences({ showResultsInNav: false });
+    }
+  };
+
   app.get(api.results.list.path, async (req, res) => {
     const rollNo = req.query.rollNo as string | undefined;
     const className = req.query.className as string | undefined;
@@ -1186,11 +1200,132 @@ export async function registerRoutes(
     try {
       const input = api.results.bulkCreate.input.parse(req.body);
       await storage.createResults(input);
+      const classTargets = new Map<string, { label: string; slug: string }>();
+      input.forEach((entry) => {
+        const rawData =
+          entry.data && typeof entry.data === "object" && !Array.isArray(entry.data)
+            ? (entry.data as Record<string, any>)
+            : undefined;
+        const normalized = normalizeResultData({
+          data: rawData,
+          rawRow: entry as Record<string, any>,
+          fallbackYear: entry.year,
+        });
+        const classLabel = String(normalized.className ?? normalized.classSlug ?? "").trim();
+        if (!classLabel) return;
+        const classSlug = normalized.classSlug || slugifyClass(classLabel);
+        const key = classSlug || classLabel.toLowerCase();
+        if (!classTargets.has(key)) {
+          classTargets.set(key, { label: classLabel, slug: classSlug || classLabel });
+        }
+      });
+
+      for (const target of classTargets.values()) {
+        const displayLabel = /class|grade|std|standard/i.test(target.label)
+          ? target.label
+          : `Class ${target.label}`;
+        await storage.createAnnouncement({
+          title: `${displayLabel} Results Posted`,
+          content: `The ${displayLabel} results are now available on the results portal.`,
+          status: "published",
+          link: target.slug ? `/results?class=${encodeURIComponent(target.slug)}` : "/results",
+        });
+      }
+      if (classTargets.size === 0 && input.length > 0) {
+        const examLabel = input[0]?.examName ? `${input[0].examName} Results Posted` : "Exam Results Posted";
+        await storage.createAnnouncement({
+          title: examLabel,
+          content: "New exam results are now available on the results portal.",
+          status: "published",
+          link: "/results",
+        });
+      }
       res.status(201).json({ count: input.length });
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.post(api.results.replace.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.results.replace.input.parse(req.body);
+      await storage.replaceResults(input);
+      const classTargets = new Map<string, { label: string; slug: string }>();
+      input.forEach((entry) => {
+        const rawData =
+          entry.data && typeof entry.data === "object" && !Array.isArray(entry.data)
+            ? (entry.data as Record<string, any>)
+            : undefined;
+        const normalized = normalizeResultData({
+          data: rawData,
+          rawRow: entry as Record<string, any>,
+          fallbackYear: entry.year,
+        });
+        const classLabel = String(normalized.className ?? normalized.classSlug ?? "").trim();
+        if (!classLabel) return;
+        const classSlug = normalized.classSlug || slugifyClass(classLabel);
+        const key = classSlug || classLabel.toLowerCase();
+        if (!classTargets.has(key)) {
+          classTargets.set(key, { label: classLabel, slug: classSlug || classLabel });
+        }
+      });
+
+      for (const target of classTargets.values()) {
+        const displayLabel = /class|grade|std|standard/i.test(target.label)
+          ? target.label
+          : `Class ${target.label}`;
+        await storage.createAnnouncement({
+          title: `${displayLabel} Results Posted`,
+          content: `The ${displayLabel} results are now available on the results portal.`,
+          status: "published",
+          link: target.slug ? `/results?class=${encodeURIComponent(target.slug)}` : "/results",
+        });
+      }
+      if (classTargets.size === 0 && input.length > 0) {
+        const examLabel = input[0]?.examName ? `${input[0].examName} Results Posted` : "Exam Results Posted";
+        await storage.createAnnouncement({
+          title: examLabel,
+          content: "New exam results are now available on the results portal.",
+          status: "published",
+          link: "/results",
+        });
+      }
+      res.status(201).json({ count: input.length });
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.post(api.results.bulkDelete.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.results.bulkDelete.input.parse(req.body);
+      await storage.deleteResults(input.ids);
+      await hideResultsNavIfEmpty();
+      res.status(200).json({ count: input.ids.length });
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.put(api.results.update.path, requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = api.results.update.input.parse(req.body);
+      const existing = await storage.getResult(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Result not found" });
+      }
+      const existingData = isPlainObject(existing.data) ? (existing.data as Record<string, any>) : {};
+      const inputData = isPlainObject(input.data) ? (input.data as Record<string, any>) : {};
+      const mergedData = {
+        ...existingData,
+        ...inputData,
+      };
+      const updated = await storage.updateResult(id, { ...input, data: mergedData });
+      res.json(updated);
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.post(api.results.label.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.results.label.input.parse(req.body);
+      await storage.updateResultsLabel(input.ids, input.label);
+      res.status(200).json({ count: input.ids.length });
     } catch (err) { handleZodError(res, err); }
   });
   app.delete(api.results.delete.path, requireAuth, async (req, res) => {
     await storage.deleteResult(Number(req.params.id));
+    await hideResultsNavIfEmpty();
     res.status(204).end();
   });
 

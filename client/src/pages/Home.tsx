@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, CalendarDays, BellRing, MapPin, Quote } from "lucide-react";
+import { CalendarDays, BellRing, MapPin, Quote, X } from "lucide-react";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useRankers } from "@/hooks/use-rankers";
 import { useStudentLife, type StudentLifeEntry } from "@/hooks/use-additional-content";
 import { useHeadmasterMessages } from "@/hooks/use-headmaster";
 import { StudentLifeHeroSlider } from "@/components/StudentLifeHeroSlider";
 import { SchoolLogo } from "@/components/SchoolLogo";
-import type { HeadmasterMessage, Ranker } from "@shared/schema";
+import type { Announcement, HeadmasterMessage, Ranker } from "@shared/schema";
 import { RankersHeroSlider } from "@/components/RankersHeroSlider";
 import { format } from "date-fns";
 import { useEvents } from "@/hooks/use-events";
@@ -136,56 +135,16 @@ export default function Home() {
       {/* Main Content Area */}
       <main className="flex-1 py-20 container mx-auto px-4 sm:px-6 lg:px-8 space-y-32">
 
-        {/* Latest Announcements */}
-        <section>
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Latest Updates</h2>
-              <p className="text-muted-foreground mt-2">News and announcements from the campus</p>
-            </div>
-            <Button variant="ghost" className="text-primary font-semibold group hidden sm:flex">
-              View All <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {announcements.slice(0, 3).map((announcement) => (
-              <Card key={announcement.id} className="hover-elevate overflow-hidden border-none shadow-md bg-card">
-                <div className="bg-primary/5 p-6 h-full flex flex-col">
-                  <div className="flex items-center gap-2 text-primary text-sm font-bold mb-4">
-                    <BellRing className="w-4 h-4" />
-                    <span>{format(new Date(announcement.createdAt || new Date()), "MMM dd, yyyy")}</span>
-                  </div>
-                  <h3 className="text-xl font-bold mb-3 line-clamp-2">{announcement.title}</h3>
-                  <p className="text-muted-foreground line-clamp-3 mb-6 flex-1">{announcement.content}</p>
-                  <Button variant="link" className="px-0 w-fit text-primary font-bold hover:no-underline hover:text-accent">
-                    Read More <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-            {announcements.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-muted-foreground bg-muted/50 rounded-xl border border-dashed border-border">
-                No recent announcements.
-              </div>
-            )}
-          </div>
-        </section>
-
         {/* Rankers Spotlight */}
-        {publishedRankers.length > 0 ? (
+        {publishedRankers.length > 0 && (
           <section className="-mx-4 sm:-mx-6 lg:-mx-8 rounded-3xl overflow-hidden shadow-2xl">
             <RankersHeroSlider rankers={publishedRankers} />
-          </section>
-        ) : (
-          <section className="text-center py-16 bg-muted/40 rounded-2xl border border-dashed border-border">
-            Rankers data will go live automatically once exam results are published.
           </section>
         )}
 
       </main>
-
-  <Footer />
+      <NotificationsPanel announcements={announcements} />
+      <Footer />
     </div>
   );
 }
@@ -233,6 +192,144 @@ function HeadMasterWordsSection({ message }: { message: HeadmasterMessage }) {
       </div>
     </section>
   );
+}
+
+function NotificationsPanel({ announcements }: { announcements: Announcement[] }) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragState = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
+    null,
+  );
+
+  const sortedAnnouncements = useMemo(() => {
+    return [...announcements].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [announcements]);
+
+  const now = Date.now();
+  const isNew = (item: Announcement) => {
+    if (!item.createdAt) return false;
+    const createdAt = new Date(item.createdAt).getTime();
+    return now - createdAt <= 7 * 24 * 60 * 60 * 1000;
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragState.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      baseX: offset.x,
+      baseY: offset.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState.current) return;
+    const nextX = dragState.current.baseX + (event.clientX - dragState.current.startX);
+    const nextY = dragState.current.baseY + (event.clientY - dragState.current.startY);
+    setOffset({ x: nextX, y: nextY });
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragState.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-xl"
+        onClick={() => setIsOpen(true)}
+        aria-label="Open notifications"
+      >
+        <BellRing className="h-5 w-5" />
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="fixed bottom-6 right-6 z-40 w-[340px] max-w-[90vw] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+      style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+    >
+      <div
+        className="flex cursor-move items-center justify-between gap-3 bg-primary px-4 py-3 text-white"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest">
+          <BellRing className="h-4 w-4" />
+          Latest Updates
+        </div>
+        <button
+          type="button"
+          className="rounded-full bg-white/20 p-1 hover:bg-white/30"
+          onClick={() => setIsOpen(false)}
+          aria-label="Close notifications"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="max-h-[360px] overflow-y-auto">
+        {sortedAnnouncements.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+            No updates published yet.
+          </div>
+        ) : (
+          sortedAnnouncements.map((announcement) => {
+            const link = deriveAnnouncementLink(announcement);
+            return (
+              <a
+                key={announcement.id}
+                href={link}
+                className="block border-b border-slate-100 px-4 py-3 transition-colors hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                  <span>
+                    {format(new Date(announcement.createdAt || new Date()), "dd MMM yyyy")}
+                  </span>
+                  {isNew(announcement) && (
+                    <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                      New
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {announcement.title}
+                </p>
+                <p className="mt-1 text-xs text-slate-500 line-clamp-2">
+                  {announcement.content}
+                </p>
+              </a>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function deriveAnnouncementLink(announcement: Announcement) {
+  if (announcement.link && announcement.link.trim()) {
+    return announcement.link.trim();
+  }
+  const combined = `${announcement.title} ${announcement.content}`.toLowerCase();
+  if (combined.includes("result")) return "/results";
+  if (combined.includes("ranker")) return "/rankers";
+  if (combined.includes("event")) return "/events";
+  if (combined.includes("admission")) return "/admissions";
+  if (combined.includes("faculty")) return "/faculty";
+  if (combined.includes("student life") || combined.includes("student-life") || combined.includes("studentlife")) {
+    return "/student-life";
+  }
+  if (combined.includes("academic")) return "/academics";
+  return "/";
 }
 
 function WelcomeSplash() {

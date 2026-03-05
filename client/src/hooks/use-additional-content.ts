@@ -118,6 +118,23 @@ export function useBulkCreateResults() {
   });
 }
 
+export function useReplaceResults() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any[]) => {
+      const res = await fetch(api.results.replace.path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to replace results");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.results.list.path] }),
+  });
+}
+
 export function useDeleteResult() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -128,6 +145,58 @@ export function useDeleteResult() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to delete result");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.results.list.path] }),
+  });
+}
+
+export function useBulkDeleteResults() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res = await fetch(api.results.bulkDelete.path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete results");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.results.list.path] }),
+  });
+}
+
+export function useUpdateResultsLabel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, label }: { ids: number[]; label: string }) => {
+      const res = await fetch(api.results.label.path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, label }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to rename results group");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.results.list.path] }),
+  });
+}
+
+export function useUpdateResult() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: any }) => {
+      const url = buildUrl(api.results.update.path, { id });
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update result");
+      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.results.list.path] }),
   });
