@@ -16,19 +16,19 @@ import {
   SidebarFooter,
   useSidebar
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Megaphone, Users, CalendarDays, Medal, LogOut, Loader2, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal, Quote } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, CalendarDays, Medal, LogOut, Loader2, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal, Quote, Images } from "lucide-react";
 import { SchoolLogo } from "@/components/SchoolLogo";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useUser();
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
   const logoutMutation = useLogout();
 
   useEffect(() => {
     if (!isLoading && !user) {
-      setLocation("/admin/login");
+      window.location.replace("/admin/login");
     }
-  }, [user, isLoading, setLocation]);
+  }, [user, isLoading]);
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   
@@ -41,6 +41,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { title: "Announcements", url: "/admin/announcements", icon: Megaphone },
     { title: "Academics", url: "/admin/academics", icon: BookOpen },
     { title: "Student Life", url: "/admin/student-life", icon: Heart },
+    { title: "Home Highlights", url: "/admin/home-highlights", icon: Images },
     { title: "Head Master", url: "/admin/headmaster", icon: Quote },
     { title: "Faculty Profiles", url: "/admin/faculty", icon: Users },
     { title: "Events", url: "/admin/events", icon: CalendarDays },
@@ -132,7 +133,13 @@ function AdminChrome({
           <Button 
             variant="destructive" 
             className="w-full justify-start text-destructive-foreground" 
-            onClick={() => logoutMutation.mutate()}
+            onClick={() =>
+              logoutMutation.mutate(undefined, {
+                onSuccess: () => {
+                  window.location.replace("/admin/login");
+                },
+              })
+            }
           >
             <LogOut className="w-4 h-4 mr-2" /> Logout
           </Button>

@@ -44,9 +44,9 @@ export default function Faculty() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {profiles.map((profile) => (
                 <Card key={profile.id} className="overflow-hidden shadow-md border-0">
-                  <div className="h-56 w-full bg-slate-100">
+                  <div className="w-full aspect-[9/16] bg-slate-100">
                     {profile.imageUrl ? (
-                      <img src={profile.imageUrl} alt={profile.name} className="w-full h-full object-cover" />
+                      <img src={profile.imageUrl} alt={profile.name} className="w-full h-full object-cover object-top" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                         Image coming soon

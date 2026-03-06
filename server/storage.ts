@@ -11,6 +11,8 @@ import {
   type InsertEventImage,
   type GalleryImage,
   type InsertGalleryImage,
+  type GlobalImage,
+  type InsertGlobalImage,
   type Ranker,
   type InsertRanker,
   type Academic,
@@ -56,6 +58,7 @@ const COLLECTION_PATHS = {
   faculty: "faculty",
   events: "events",
   gallery: "gallery",
+  globalImages: "globalImages",
   rankers: "rankers",
   academics: "academics",
   studentLife: "studentLife",
@@ -164,6 +167,12 @@ export interface IStorage {
   createGalleryImage(data: InsertGalleryImage): Promise<GalleryImage>;
   updateGalleryImage(id: number, data: Partial<InsertGalleryImage>): Promise<GalleryImage>;
   deleteGalleryImage(id: number): Promise<void>;
+
+  getGlobalImages(status?: string): Promise<GlobalImage[]>;
+  getGlobalImage(id: number): Promise<GlobalImage | undefined>;
+  createGlobalImage(data: InsertGlobalImage): Promise<GlobalImage>;
+  updateGlobalImage(id: number, data: Partial<InsertGlobalImage>): Promise<GlobalImage>;
+  deleteGlobalImage(id: number): Promise<void>;
 
   getRankers(status?: string): Promise<Ranker[]>;
   getRanker(id: number): Promise<Ranker | undefined>;
@@ -455,6 +464,53 @@ class FirebaseStorage implements IStorage {
 
   async deleteGalleryImage(id: number): Promise<void> {
     await removeRecord("gallery", id);
+  }
+
+  // Global Images
+  async getGlobalImages(status?: string): Promise<GlobalImage[]> {
+    const items = await listRecords<GlobalImage>("globalImages");
+    const filtered = status ? items.filter((item) => item.status === status) : items;
+    return filtered.sort((a, b) => {
+      const orderA = a.orderIndex ?? 0;
+      const orderB = b.orderIndex ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      const timeA = new Date((a.createdAt ?? 0) as any).getTime();
+      const timeB = new Date((b.createdAt ?? 0) as any).getTime();
+      return timeA - timeB;
+    });
+  }
+
+  async getGlobalImage(id: number): Promise<GlobalImage | undefined> {
+    return (await getRecordById<GlobalImage>("globalImages", id)) as GlobalImage | undefined;
+  }
+
+  async createGlobalImage(data: InsertGlobalImage): Promise<GlobalImage> {
+    const id = generateNumericId();
+    const existing = await listRecords<GlobalImage>("globalImages");
+    const maxOrder = existing.reduce((max, item) => Math.max(max, item.orderIndex ?? -1), -1);
+    const record: GlobalImage = {
+      id,
+      orderIndex: Number.isFinite(data.orderIndex as number) ? (data.orderIndex as number) : maxOrder + 1,
+      status: data.status ?? "published",
+      imageSourceType: data.imageSourceType ?? "upload",
+      imageUrl: data.imageUrl ?? null,
+      imagePath: data.imagePath ?? null,
+      label: data.label ?? null,
+      createdAt: new Date().toISOString() as unknown as Date,
+    };
+    await saveRecord("globalImages", record);
+    return record;
+  }
+
+  async updateGlobalImage(id: number, data: Partial<InsertGlobalImage>): Promise<GlobalImage> {
+    await updateRecord("globalImages", id, data);
+    const updated = await this.getGlobalImage(id);
+    if (!updated) throw new Error("Global image not found");
+    return updated;
+  }
+
+  async deleteGlobalImage(id: number): Promise<void> {
+    await removeRecord("globalImages", id);
   }
 
   // Rankers

@@ -17,13 +17,20 @@ export default function AdminLogin() {
 
   useEffect(() => {
     if (user) {
-      setLocation("/admin");
+      window.location.replace("/admin");
     }
-  }, [user, setLocation]);
+  }, [user]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    loginMutation.mutate({ email, password });
+    loginMutation.mutate(
+      { email, password },
+      {
+        onSuccess: () => {
+          window.location.replace("/admin");
+        },
+      },
+    );
   };
 
   if (isLoading) {

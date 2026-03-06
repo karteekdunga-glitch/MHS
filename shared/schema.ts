@@ -69,6 +69,17 @@ export const galleryImages = pgTable("gallery_images", {
   status: text("status").notNull().default('draft'),
 });
 
+export const globalImages = pgTable("global_images", {
+  id: serial("id").primaryKey(),
+  label: text("label"),
+  imageSourceType: text("image_source_type").notNull().default("upload"),
+  imageUrl: text("image_url"),
+  imagePath: text("image_path"),
+  orderIndex: integer("order_index").default(0),
+  status: text("status").notNull().default("published"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const rankers = pgTable("rankers", {
   id: serial("id").primaryKey(),
   studentName: text("student_name").notNull(),
@@ -202,6 +213,10 @@ export type EventStatus = typeof eventStatusValues[number];
 export const insertGallerySchema = createInsertSchema(galleryImages).omit({ id: true });
 export type GalleryImage = typeof galleryImages.$inferSelect;
 export type InsertGalleryImage = z.infer<typeof insertGallerySchema>;
+
+export const insertGlobalImageSchema = createInsertSchema(globalImages).omit({ id: true, createdAt: true });
+export type GlobalImage = typeof globalImages.$inferSelect;
+export type InsertGlobalImage = z.infer<typeof insertGlobalImageSchema>;
 
 export const insertRankerSchema = createInsertSchema(rankers).omit({
   id: true,

@@ -4,6 +4,7 @@ import {
   facultyProfiles,
   events, eventStatusValues,
   insertGallerySchema, galleryImages,
+  insertGlobalImageSchema, globalImages,
   insertRankerSchema, rankers,
   insertAcademicSchema, academics,
   studentLife,
@@ -176,6 +177,8 @@ const resultsLabelInput = z.object({
   label: z.string().min(1).max(120),
 });
 
+const globalImageInput = insertGlobalImageSchema.partial();
+
 const facultyBaseInput = z.object({
   name: z.string().min(2),
   role: z.string().min(2),
@@ -333,6 +336,31 @@ export const api = {
       path: '/api/gallery/:id' as const,
       responses: { 204: z.void(), 404: errorSchemas.notFound },
     }
+  },
+  globalImages: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/global-images' as const,
+      input: z.object({ status: z.string().optional() }).optional(),
+      responses: { 200: z.array(z.custom<typeof globalImages.$inferSelect>()) },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/global-images' as const,
+      input: globalImageInput,
+      responses: { 201: z.array(z.custom<typeof globalImages.$inferSelect>()), 401: errorSchemas.unauthorized },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/global-images/:id' as const,
+      input: globalImageInput,
+      responses: { 200: z.custom<typeof globalImages.$inferSelect>(), 404: errorSchemas.notFound },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/global-images/:id' as const,
+      responses: { 204: z.void(), 404: errorSchemas.notFound },
+    },
   },
   rankers: {
     list: {

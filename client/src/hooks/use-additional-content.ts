@@ -19,6 +19,17 @@ export type StudentLifeEntry = {
   images: StudentLifeImage[];
 };
 
+export type GlobalImage = {
+  id: number;
+  label?: string | null;
+  imageSourceType?: string | null;
+  imageUrl?: string | null;
+  imagePath?: string | null;
+  orderIndex?: number | null;
+  status?: string | null;
+  createdAt?: string | null;
+};
+
 export function useAcademics(status?: string, category?: string) {
   return useQuery({
     queryKey: [api.academics.list.path, status, category],
@@ -43,6 +54,79 @@ export function useStudentLife(status?: string) {
       const data = await res.json();
       return (data as StudentLifeEntry[]) ?? [];
     },
+  });
+}
+
+export function useGlobalImages(status?: string) {
+  return useQuery({
+    queryKey: [api.globalImages.list.path, status],
+    queryFn: async () => {
+      const url = status ? `${api.globalImages.list.path}?status=${status}` : api.globalImages.list.path;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch home highlight images");
+      return (await res.json()) as GlobalImage[];
+    },
+  });
+}
+
+export function useCreateGlobalImages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: FormData | Record<string, unknown>) => {
+      const isForm = payload instanceof FormData;
+      const res = await fetch(api.globalImages.create.path, {
+        method: "POST",
+        body: isForm ? (payload as FormData) : JSON.stringify(payload),
+        headers: isForm ? undefined : { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to upload highlight images");
+      }
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.globalImages.list.path] }),
+  });
+}
+
+export function useUpdateGlobalImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: FormData | Record<string, unknown> }) => {
+      const url = buildUrl(api.globalImages.update.path, { id });
+      const isForm = payload instanceof FormData;
+      const res = await fetch(url, {
+        method: "PUT",
+        body: isForm ? (payload as FormData) : JSON.stringify(payload),
+        headers: isForm ? undefined : { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to update highlight image");
+      }
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.globalImages.list.path] }),
+  });
+}
+
+export function useDeleteGlobalImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.globalImages.delete.path, { id });
+      const res = await fetch(url, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to delete highlight image");
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.globalImages.list.path] }),
   });
 }
 

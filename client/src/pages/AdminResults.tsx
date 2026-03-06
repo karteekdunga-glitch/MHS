@@ -262,7 +262,7 @@ export default function AdminResults() {
               Upload CSV/Excel exports or add results manually. Every record instantly powers the public result lookup page.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               ref={fileInputRef}
               type="file"
@@ -270,13 +270,13 @@ export default function AdminResults() {
               className="sr-only"
               onChange={handleFileChange}
             />
-            <Button onClick={openFileDialog} disabled={isUploading} className="gap-2">
+            <Button onClick={openFileDialog} disabled={isUploading} className="gap-2 w-full sm:w-auto">
               {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {isUploading ? "Uploading..." : "Upload File"}
             </Button>
             <Button
               variant="outline"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={() => {
                 const sample = [
                   "rollNo,studentName,examName,year,class,section,subjects_json",
@@ -293,7 +293,7 @@ export default function AdminResults() {
             </Button>
             <Dialog open={manualOpen} onOpenChange={setManualOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 bg-primary/90 hover:bg-primary">
+                <Button className="gap-2 bg-primary/90 hover:bg-primary w-full sm:w-auto">
                   <Plus className="w-4 h-4" /> Manual Entry
                 </Button>
               </DialogTrigger>
@@ -380,13 +380,13 @@ export default function AdminResults() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {query && (
-                  <Button variant="ghost" onClick={() => setQuery("")}>
+                  <Button variant="ghost" onClick={() => setQuery("")} className="w-full sm:w-auto">
                     Clear
                   </Button>
                 )}
                 <Button
                   variant="destructive"
-                  className="gap-2"
+                  className="gap-2 w-full sm:w-auto"
                   disabled={selectedIds.length === 0 || bulkDeleteResults.isPending}
                   onClick={handleBulkDelete}
                 >
@@ -521,6 +521,7 @@ export default function AdminResults() {
                     </CardHeader>
                     {isOpen && (
                       <CardContent className="space-y-3">
+                        <div className="w-full overflow-x-auto">
                         <Table>
                       <TableHeader>
                         <TableRow>
@@ -616,6 +617,7 @@ export default function AdminResults() {
                         })}
                       </TableBody>
                         </Table>
+                        </div>
                       </CardContent>
                     )}
                   </Card>

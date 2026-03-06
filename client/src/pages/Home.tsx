@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarDays, BellRing, MapPin, Quote, X } from "lucide-react";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useRankers } from "@/hooks/use-rankers";
-import { useStudentLife, type StudentLifeEntry } from "@/hooks/use-additional-content";
+import { useStudentLife, useGlobalImages, type StudentLifeEntry, type GlobalImage } from "@/hooks/use-additional-content";
 import { useHeadmasterMessages } from "@/hooks/use-headmaster";
 import { StudentLifeHeroSlider } from "@/components/StudentLifeHeroSlider";
 import { SchoolLogo } from "@/components/SchoolLogo";
@@ -27,6 +27,7 @@ const FALLBACK_PORTRAIT =
   "https://images.unsplash.com/photo-1541753866388-0b3c701627d3?auto=format&fit=crop&w=900&q=80";
 
 const WELCOME_STORAGE_KEY = "mems-welcome-shown";
+
 
 export default function Home() {
   const [showWelcome, setShowWelcome] = useState(false);
@@ -51,6 +52,7 @@ export default function Home() {
   const { data: rankers = [] } = useRankers("published");
   const { data: studentLifeData = [], isLoading: isStudentLifeLoading } = useStudentLife("published");
   const studentLifeStories = (studentLifeData as StudentLifeEntry[]) ?? [];
+  const { data: globalImages = [] } = useGlobalImages("published");
   const { data: sliderEvents = [] } = useEvents({ status: "published", scope: "upcoming" });
   const typedSliderEvents = (sliderEvents as SliderEvent[]) ?? [];
   const { data: headmasterData = [] } = useHeadmasterMessages("published");
@@ -63,6 +65,25 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-background">
       {showWelcome && <WelcomeSplash />}
       <Navigation />
+
+      <HomeHighlightsSlider images={globalImages} />
+      <section className="relative overflow-hidden border-y border-[#0b3a8f] bg-gradient-to-r from-[#031a43] via-[#0b3a8f] to-[#031a43] text-white">
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.24),_transparent_60%)]" />
+        <div className="relative mx-auto flex min-h-[72px] max-w-6xl items-center justify-center px-4 py-4 text-center">
+          <div className="flex items-center gap-4">
+            <div className="h-px w-10 bg-white/45 sm:w-16" />
+            <div className="space-y-1">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-[#F5C542] sm:text-xs">
+                Campus Highlights
+              </p>
+              <h2 className="font-serif text-lg font-semibold tracking-[0.12em] text-white sm:text-2xl">
+                Student Life
+              </h2>
+            </div>
+            <div className="h-px w-10 bg-white/45 sm:w-16" />
+          </div>
+        </div>
+      </section>
 
       {hasStudentLifeHero ? (
         <StudentLifeHeroSlider stories={studentLifeStories} variant="home" />
@@ -217,6 +238,9 @@ function NotificationsPanel({ announcements }: { announcements: Announcement[] }
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button")) {
+      return;
+    }
     dragState.current = {
       startX: event.clientX,
       startY: event.clientY,
@@ -269,7 +293,13 @@ function NotificationsPanel({ announcements }: { announcements: Announcement[] }
         <button
           type="button"
           className="rounded-full bg-white/20 p-1 hover:bg-white/30"
-          onClick={() => setIsOpen(false)}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsOpen(false);
+          }}
           aria-label="Close notifications"
         >
           <X className="h-4 w-4" />
@@ -409,5 +439,74 @@ function EventsHeroSlider({ events }: { events: SliderEvent[] }) {
       <CarouselPrevious className="border-none bg-white/80 text-primary hover:bg-white absolute left-6 top-1/2 -translate-y-1/2" />
       <CarouselNext className="border-none bg-white/80 text-primary hover:bg-white absolute right-6 top-1/2 -translate-y-1/2" />
     </Carousel>
+  );
+}
+
+function HomeHighlightsSlider({ images }: { images: GlobalImage[] }) {
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const [failedSlides, setFailedSlides] = useState<number[]>([]);
+  const slides = (images ?? [])
+    .filter((img) => img.imageUrl || img.imagePath)
+    .filter((img) => !failedSlides.includes(img.id))
+    .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+    .map((img) => ({
+      id: img.id,
+      src: img.imagePath ? `/api/assets?path=${encodeURIComponent(img.imagePath)}` : (img.imageUrl as string),
+      alt: img.label || "Home highlight",
+    }));
+  const hasMultiple = slides.length > 1;
+
+  useEffect(() => {
+    setFailedSlides([]);
+  }, [images]);
+
+  useEffect(() => {
+    if (!carouselApi || !hasMultiple) return;
+    const interval = setInterval(() => {
+      carouselApi.scrollNext();
+    }, 3800);
+    return () => clearInterval(interval);
+  }, [carouselApi, hasMultiple]);
+
+  if (!slides.length) return null;
+
+  return (
+    <section className="w-full overflow-hidden bg-[#041737] leading-none">
+      <Carousel setApi={setCarouselApi} className="w-full" opts={{ loop: hasMultiple }}>
+        <CarouselContent className="!ml-0 leading-none" containerClassName="leading-none">
+          {slides.map((slide) => (
+            <CarouselItem key={slide.id} className="!pl-0 leading-none">
+              <div className="relative aspect-[16/7] w-full overflow-hidden bg-[#041737] sm:aspect-[16/6] lg:aspect-[16/5]">
+              <img
+                src={slide.src}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 block h-full w-full scale-105 object-cover object-center blur-sm brightness-[0.72]"
+                loading="eager"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#041737]/20 via-transparent to-[#041737]/20" />
+              <img
+                src={slide.src}
+                alt={slide.alt}
+                className="relative z-10 block h-full w-full object-contain object-center"
+                loading="eager"
+                onError={() => {
+                  setFailedSlides((current) =>
+                    current.includes(slide.id) ? current : [...current, slide.id],
+                  );
+                }}
+              />
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {hasMultiple && (
+          <>
+            <CarouselPrevious className="left-4 border-none bg-white/80 text-primary hover:bg-white" />
+            <CarouselNext className="right-4 border-none bg-white/80 text-primary hover:bg-white" />
+          </>
+        )}
+      </Carousel>
+    </section>
   );
 }

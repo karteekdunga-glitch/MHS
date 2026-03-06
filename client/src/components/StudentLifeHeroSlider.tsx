@@ -77,38 +77,41 @@ export function StudentLifeHeroSlider({
                     alt={story.title}
                     className="absolute inset-0 h-full w-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-slate-900/40" />
+                  <div className="absolute inset-0 bg-transparent" />
+                  <div className="absolute inset-y-0 left-0 w-[54%] bg-gradient-to-r from-[#041737]/52 via-[#041737]/20 to-transparent" />
                   <div className="relative z-10 mx-auto flex h-full w-full max-w-6xl flex-col justify-center px-6 py-10 text-left">
-                    <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.4em] text-slate-200/80">
-                      <span className="flex items-center gap-2 text-accent">
-                        <Sparkles className="h-4 w-4" /> Student Life
-                      </span>
-                      {story.highlightTag && (
-                        <Badge variant="secondary" className="bg-white/20 text-white">
-                          {story.highlightTag}
-                        </Badge>
-                      )}
-                    </div>
-                    <h2 className="mt-6 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
-                      {story.title}
-                    </h2>
-                    <p className="mt-4 max-w-3xl text-base text-slate-100/90 md:text-lg">
-                      {story.description.length > 260
-                        ? `${story.description.slice(0, 260)}...`
-                        : story.description}
-                    </p>
-                    <div className="mt-8 flex flex-wrap gap-4">
-                      <Button size="lg" className="rounded-full px-8" asChild>
-                        <a href="/student-life">Explore Student Life</a>
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="lg"
-                        className="rounded-full border border-white/40 bg-white/10 text-white hover:bg-white/20"
-                        asChild
-                      >
-                        <a href={`/student-life#story-${story.id}`}>View Story</a>
-                      </Button>
+                    <div className="w-full max-w-3xl border-l-4 border-[#F5C542] pl-5 md:pl-7">
+                      <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.4em] text-slate-100">
+                        <span className="flex items-center gap-2 text-accent drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)]">
+                          <Sparkles className="h-4 w-4" /> Student Life
+                        </span>
+                        {story.highlightTag && (
+                          <Badge variant="secondary" className="bg-white/25 text-white shadow-sm">
+                            {story.highlightTag}
+                          </Badge>
+                        )}
+                      </div>
+                      <h2 className="mt-6 text-4xl font-bold leading-tight text-white drop-shadow-[0_8px_22px_rgba(0,0,0,0.48)] md:text-5xl lg:text-6xl">
+                        {story.title}
+                      </h2>
+                      <p className="mt-4 max-w-3xl text-base leading-relaxed text-white drop-shadow-[0_6px_18px_rgba(0,0,0,0.44)] md:text-lg">
+                        {story.description.length > 260
+                          ? `${story.description.slice(0, 260)}...`
+                          : story.description}
+                      </p>
+                      <div className="mt-8 flex flex-wrap gap-4">
+                        <Button size="lg" className="rounded-full px-8" asChild>
+                          <a href="/student-life">Explore Student Life</a>
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          className="rounded-full border border-white/55 bg-white/14 text-white hover:bg-white/24"
+                          asChild
+                        >
+                          <a href={`/student-life#story-${story.id}`}>View Story</a>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -30,6 +30,14 @@ import { admissionStatusValues, eventStatusValues } from "@shared/schema";
 
 const MemoryStore = createMemoryStore(session);
 const SESSION_MAX_AGE_MS = Number(process.env.ADMIN_SESSION_MAX_AGE_MS ?? 60 * 60 * 1000);
+const SESSION_COOKIE_NAME = process.env.ADMIN_SESSION_COOKIE_NAME || "mems.admin.sid";
+
+declare module "express-session" {
+  interface SessionData {
+    authIssuedAt?: number;
+    authExpiresAt?: number;
+  }
+}
 
 function isPlainObject(value: unknown): value is Record<string, any> {
   if (!value || typeof value !== "object") return false;
@@ -98,6 +106,15 @@ function buildAssetUrl(relativePath: string, baseUrl?: string | null): string {
   return `${normalizedBase}${normalizedPath}`;
 }
 
+function toPublicUser(user: { id: number; email: string; role: string | null }, expiresAt?: number | null) {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    expiresAt: expiresAt ?? null,
+  };
+}
+
 async function persistUploadedFile(
   file: Express.Multer.File,
   options: { bucketFolder: string; entityId?: number | string; assetBaseUrl?: string | null },
@@ -142,9 +159,60 @@ export async function registerRoutes(
   const eventUploadsDir = path.join(uploadsRootDir, "events");
   const rankerUploadsDir = path.join(uploadsRootDir, "rankers");
   const headmasterUploadsDir = path.join(uploadsRootDir, "headmaster");
-  [uploadsRootDir, academicUploadsDir, studentLifeUploadsDir, facultyUploadsDir, eventUploadsDir, rankerUploadsDir, headmasterUploadsDir].forEach((dir) =>
+  const globalImageUploadsDir = path.join(uploadsRootDir, "global-images");
+  [uploadsRootDir, academicUploadsDir, studentLifeUploadsDir, facultyUploadsDir, eventUploadsDir, rankerUploadsDir, headmasterUploadsDir, globalImageUploadsDir].forEach((dir) =>
     fs.mkdirSync(dir, { recursive: true }),
   );
+
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api/auth/")) {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+    if (req.path === "/admin" || req.path.startsWith("/admin/")) {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+    next();
+  });
+
+  app.get("/api/assets", async (req, res) => {
+    const assetPath = typeof req.query.path === "string" ? req.query.path.trim() : "";
+    if (!assetPath) {
+      return res.status(400).json({ message: "Asset path is required" });
+    }
+
+    if (assetPath.startsWith("storage://")) {
+      const storageHandle = getStorageFileHandle(assetPath);
+      if (!storageHandle) {
+        return res.status(404).json({ message: "Asset not found" });
+      }
+      const extension = path.extname(assetPath);
+      if (extension) {
+        res.type(extension);
+      }
+      const stream = storageHandle.createReadStream();
+      stream.on("error", (error: unknown) => {
+        console.error("Failed to stream asset", error);
+        if (!res.headersSent) {
+          res.status(404).json({ message: "Asset file missing" });
+        }
+      });
+      return stream.pipe(res);
+    }
+
+    const resolvedUploadsRoot = path.resolve(uploadsRootDir).toLowerCase();
+    const resolvedAssetPath = path.resolve(assetPath);
+    if (!resolvedAssetPath.toLowerCase().startsWith(resolvedUploadsRoot)) {
+      return res.status(403).json({ message: "Asset path is not allowed" });
+    }
+    if (!fs.existsSync(resolvedAssetPath)) {
+      return res.status(404).json({ message: "Asset file missing" });
+    }
+    return res.sendFile(resolvedAssetPath);
+  });
 
   const academicUpload = multer({
     storage: multer.diskStorage({
@@ -230,17 +298,30 @@ export async function registerRoutes(
     limits: { files: 1, fileSize: 5 * 1024 * 1024 },
   });
 
+  const globalImageUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, globalImageUploadsDir),
+      filename: (_req, file, cb) => {
+        const safeName = file.originalname.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9.\-_]/g, "");
+        cb(null, `${Date.now()}-${safeName}`);
+      },
+    }),
+    fileFilter: imageFileFilter,
+    limits: { files: 10, fileSize: 8 * 1024 * 1024 },
+  });
+
   // Session setup
   app.use(
     session({
+      name: SESSION_COOKIE_NAME,
       secret: process.env.SESSION_SECRET || "secret123",
       resave: false,
       saveUninitialized: false,
       rolling: false,
       cookie: {
-        maxAge: SESSION_MAX_AGE_MS,
         sameSite: "lax",
         httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
       },
       store: new MemoryStore({
         checkPeriod: SESSION_MAX_AGE_MS,
@@ -279,8 +360,43 @@ export async function registerRoutes(
     }
   });
 
+  const clearAdminSession = (req: any, res: Response, statusCode = 401, message = "Session expired. Please sign in again.") => {
+    const finalize = () => {
+      res.clearCookie(SESSION_COOKIE_NAME, {
+        sameSite: "lax",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      });
+      if (!res.headersSent) {
+        res.status(statusCode).json({ message });
+      }
+    };
+
+    const destroy = () => {
+      if (req.session) {
+        req.session.destroy(() => finalize());
+        return;
+      }
+      finalize();
+    };
+
+    if (typeof req.logout === "function") {
+      req.logout(() => destroy());
+      return;
+    }
+    destroy();
+  };
+
+  const hasExpiredAdminSession = (req: any) => {
+    const expiresAt = req.session?.authExpiresAt;
+    return typeof expiresAt === "number" && Date.now() >= expiresAt;
+  };
+
   // Auth check middleware
   const requireAuth = (req: any, res: any, next: any) => {
+    if (hasExpiredAdminSession(req)) {
+      return clearAdminSession(req, res);
+    }
     if (req.isAuthenticated() && req.user?.role === 'admin') {
       return next();
     }
@@ -311,12 +427,21 @@ export async function registerRoutes(
           });
         }
 
-        req.logIn(user, (loginErr) => {
-          if (loginErr) return next(loginErr);
-          const safeUser = user as { id: number; email: string; role: string | null };
-          return res.json({
-            message: "Logged in successfully",
-            user: { id: safeUser.id, email: safeUser.email, role: safeUser.role },
+        req.session.regenerate((sessionErr: unknown) => {
+          if (sessionErr) return next(sessionErr);
+          req.logIn(user, (loginErr) => {
+            if (loginErr) return next(loginErr);
+            const safeUser = user as { id: number; email: string; role: string | null };
+            req.session.authIssuedAt = Date.now();
+            req.session.authExpiresAt = Date.now() + SESSION_MAX_AGE_MS;
+            req.session.save((saveErr: unknown) => {
+              if (saveErr) return next(saveErr);
+              return res.json({
+                message: "Logged in successfully",
+                user: toPublicUser(safeUser, req.session.authExpiresAt),
+                expiresAt: req.session.authExpiresAt,
+              });
+            });
           });
         });
       },
@@ -324,15 +449,32 @@ export async function registerRoutes(
   });
 
   app.post(api.auth.logout.path, (req, res, next) => {
+    const finalize = () => {
+      res.clearCookie(SESSION_COOKIE_NAME, {
+        sameSite: "lax",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      });
+      res.json({ message: 'Logged out successfully' });
+    };
+
     req.logout((err) => {
       if (err) return next(err);
-      res.json({ message: 'Logged out successfully' });
+      if (req.session) {
+        req.session.destroy(() => finalize());
+        return;
+      }
+      finalize();
     });
   });
 
   app.get(api.auth.me.path, (req, res) => {
+    if (hasExpiredAdminSession(req)) {
+      return clearAdminSession(req, res);
+    }
     if (req.isAuthenticated()) {
-      res.json(req.user);
+      const user = req.user as { id: number; email: string; role: string | null };
+      res.json(toPublicUser(user, req.session?.authExpiresAt ?? null));
     } else {
       res.status(401).json({ message: 'Not authenticated' });
     }
@@ -693,6 +835,125 @@ export async function registerRoutes(
   });
   app.delete(api.gallery.delete.path, requireAuth, async (req, res) => {
     await storage.deleteGalleryImage(Number(req.params.id));
+    res.status(204).end();
+  });
+
+  // Global Images (Home Highlights)
+  app.get(api.globalImages.list.path, async (req, res) => {
+    const status = req.query.status as string | undefined;
+    const items = await storage.getGlobalImages(status);
+    res.json(items);
+  });
+  app.post(api.globalImages.create.path, requireAuth, globalImageUpload.array("images", 10), async (req, res) => {
+    const files = normalizeFiles(req.files);
+    try {
+      const input = api.globalImages.create.input.parse(req.body);
+      const sourceType = (input.imageSourceType as string | undefined) ?? (files.length ? "upload" : "url");
+
+      if (sourceType === "upload") {
+        if (!files.length) {
+          return res.status(400).json({ message: "Upload at least one image." });
+        }
+        const assetBaseUrl = getAssetBaseUrl(req);
+        const created = await Promise.all(
+          files.map(async (file) => {
+            const uploaded = await persistUploadedFile(file, {
+              bucketFolder: "global-images",
+              assetBaseUrl,
+            });
+            return storage.createGlobalImage({
+              imageSourceType: "upload",
+              imageUrl: uploaded.fileUrl,
+              imagePath: uploaded.filePath,
+              status: input.status ?? "published",
+              label: input.label ?? path.parse(file.originalname).name,
+            });
+          }),
+        );
+        return res.status(201).json(created);
+      }
+
+      if (!input.imageUrl) {
+        return res.status(400).json({ message: "Image URL is required when using URL source." });
+      }
+
+      const item = await storage.createGlobalImage({
+        imageSourceType: "url",
+        imageUrl: input.imageUrl.trim(),
+        status: input.status ?? "published",
+        label: input.label ?? null,
+        orderIndex: input.orderIndex,
+      });
+      return res.status(201).json([item]);
+    } catch (err) {
+      cleanupUploadedFiles(req.files);
+      handleZodError(res, err);
+    }
+  });
+  app.put(api.globalImages.update.path, requireAuth, globalImageUpload.single("image"), async (req, res) => {
+    const id = Number(req.params.id);
+    let fileToCleanup: Express.Multer.File | undefined;
+    try {
+      const input = api.globalImages.update.input.parse(req.body);
+      const existing = await storage.getGlobalImage(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Global image not found" });
+      }
+      const nextSourceType = (input.imageSourceType as string | undefined) ?? existing.imageSourceType ?? "upload";
+      let nextImageUrl = existing.imageUrl ?? null;
+      let nextImagePath = existing.imagePath ?? null;
+
+      if (nextSourceType === "upload") {
+        if (req.file) {
+          fileToCleanup = req.file;
+          const uploaded = await persistUploadedFile(req.file, {
+            bucketFolder: "global-images",
+            entityId: id,
+            assetBaseUrl: getAssetBaseUrl(req),
+          });
+          if (existing.imagePath) {
+            deleteFileSafe(existing.imagePath);
+          }
+          nextImageUrl = uploaded.fileUrl;
+          nextImagePath = uploaded.filePath;
+        } else if (!nextImageUrl) {
+          return res.status(400).json({ message: "Upload an image for this slider item." });
+        }
+      } else {
+        if (!input.imageUrl) {
+          return res.status(400).json({ message: "Image URL is required when using URL source." });
+        }
+        if (existing.imagePath) {
+          deleteFileSafe(existing.imagePath);
+        }
+        nextImageUrl = input.imageUrl.trim();
+        nextImagePath = null;
+      }
+
+      const updated = await storage.updateGlobalImage(id, {
+        imageSourceType: nextSourceType,
+        imageUrl: nextImageUrl,
+        imagePath: nextImagePath,
+        label: input.label ?? existing.label ?? null,
+        status: input.status ?? existing.status,
+        orderIndex: Number.isFinite(input.orderIndex as number) ? input.orderIndex : existing.orderIndex,
+      });
+      res.json(updated);
+    } catch (err) {
+      if (fileToCleanup) cleanupUploadedFiles(fileToCleanup);
+      handleZodError(res, err);
+    }
+  });
+  app.delete(api.globalImages.delete.path, requireAuth, async (req, res) => {
+    const id = Number(req.params.id);
+    const existing = await storage.getGlobalImage(id);
+    if (!existing) {
+      return res.status(404).json({ message: "Global image not found" });
+    }
+    if (existing.imagePath) {
+      deleteFileSafe(existing.imagePath);
+    }
+    await storage.deleteGlobalImage(id);
     res.status(204).end();
   });
 
