@@ -476,7 +476,7 @@ function HomeHighlightsSlider({ images }: { images: GlobalImage[] }) {
         <CarouselContent className="!ml-0 leading-none" containerClassName="leading-none">
           {slides.map((slide) => (
             <CarouselItem key={slide.id} className="!pl-0 leading-none">
-              <div className="relative aspect-[16/7] w-full overflow-hidden bg-[#041737] sm:aspect-[16/6] lg:aspect-[16/5]">
+              <div className="relative h-[42vw] min-h-[220px] w-full overflow-hidden bg-[#041737] sm:h-auto sm:min-h-0 sm:aspect-[16/6] lg:aspect-[16/5]">
               <img
                 src={slide.src}
                 alt=""
@@ -502,8 +502,8 @@ function HomeHighlightsSlider({ images }: { images: GlobalImage[] }) {
         </CarouselContent>
         {hasMultiple && (
           <>
-            <CarouselPrevious className="left-4 border-none bg-white/80 text-primary hover:bg-white" />
-            <CarouselNext className="right-4 border-none bg-white/80 text-primary hover:bg-white" />
+            <CarouselPrevious className="left-3 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white sm:left-4" />
+            <CarouselNext className="right-3 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white sm:right-4" />
           </>
         )}
       </Carousel>
