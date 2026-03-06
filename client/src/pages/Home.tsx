@@ -443,7 +443,8 @@ function EventsHeroSlider({ events }: { events: SliderEvent[] }) {
 }
 
 function HomeHighlightsSlider({ images }: { images: GlobalImage[] }) {
-  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const [mobileCarouselApi, setMobileCarouselApi] = useState<CarouselApi | null>(null);
+  const [desktopCarouselApi, setDesktopCarouselApi] = useState<CarouselApi | null>(null);
   const [failedSlides, setFailedSlides] = useState<number[]>([]);
   const slides = (images ?? [])
     .filter((img) => img.imageUrl || img.imagePath)
@@ -461,52 +462,100 @@ function HomeHighlightsSlider({ images }: { images: GlobalImage[] }) {
   }, [images]);
 
   useEffect(() => {
-    if (!carouselApi || !hasMultiple) return;
+    if (!mobileCarouselApi || !hasMultiple) return;
     const interval = setInterval(() => {
-      carouselApi.scrollNext();
+      mobileCarouselApi.scrollNext();
     }, 3800);
     return () => clearInterval(interval);
-  }, [carouselApi, hasMultiple]);
+  }, [mobileCarouselApi, hasMultiple]);
+
+  useEffect(() => {
+    if (!desktopCarouselApi || !hasMultiple) return;
+    const interval = setInterval(() => {
+      desktopCarouselApi.scrollNext();
+    }, 3800);
+    return () => clearInterval(interval);
+  }, [desktopCarouselApi, hasMultiple]);
 
   if (!slides.length) return null;
 
   return (
-    <section className="w-full overflow-hidden bg-[#041737] leading-none">
-      <Carousel setApi={setCarouselApi} className="w-full" opts={{ loop: hasMultiple }}>
-        <CarouselContent className="!ml-0 leading-none" containerClassName="leading-none">
-          {slides.map((slide) => (
-            <CarouselItem key={slide.id} className="!pl-0 leading-none">
-              <div className="relative h-[42vw] min-h-[220px] w-full overflow-hidden bg-[#041737] sm:h-auto sm:min-h-0 sm:aspect-[16/6] lg:aspect-[16/5]">
-              <img
-                src={slide.src}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 block h-full w-full scale-105 object-cover object-center blur-sm brightness-[0.72]"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#041737]/20 via-transparent to-[#041737]/20" />
-              <img
-                src={slide.src}
-                alt={slide.alt}
-                className="relative z-10 block h-full w-full object-contain object-center"
-                loading="eager"
-                onError={() => {
-                  setFailedSlides((current) =>
-                    current.includes(slide.id) ? current : [...current, slide.id],
-                  );
-                }}
-              />
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        {hasMultiple && (
-          <>
-            <CarouselPrevious className="left-3 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white sm:left-4" />
-            <CarouselNext className="right-3 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white sm:right-4" />
-          </>
-        )}
-      </Carousel>
-    </section>
+    <>
+      <section className="w-full overflow-hidden bg-[#041737] leading-none md:hidden">
+        <Carousel setApi={setMobileCarouselApi} className="w-full" opts={{ loop: hasMultiple }}>
+          <CarouselContent className="!ml-0 leading-none" containerClassName="leading-none">
+            {slides.map((slide) => (
+              <CarouselItem key={slide.id} className="!pl-0 leading-none">
+                <div className="relative h-[240px] w-full overflow-hidden bg-[#041737]">
+                  <img
+                    src={slide.src}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 block h-full w-full scale-105 object-cover object-center blur-sm brightness-[0.72]"
+                    loading="eager"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#041737]/18 via-transparent to-[#041737]/18" />
+                  <img
+                    src={slide.src}
+                    alt={slide.alt}
+                    className="relative z-10 block h-full w-full object-contain object-center"
+                    loading="eager"
+                    onError={() => {
+                      setFailedSlides((current) =>
+                        current.includes(slide.id) ? current : [...current, slide.id],
+                      );
+                    }}
+                  />
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          {hasMultiple && (
+            <>
+              <CarouselPrevious className="left-3 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white" />
+              <CarouselNext className="right-3 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white" />
+            </>
+          )}
+        </Carousel>
+      </section>
+
+      <section className="hidden w-full overflow-hidden bg-[#041737] leading-none md:block">
+        <Carousel setApi={setDesktopCarouselApi} className="w-full" opts={{ loop: hasMultiple }}>
+          <CarouselContent className="!ml-0 leading-none" containerClassName="leading-none">
+            {slides.map((slide) => (
+              <CarouselItem key={slide.id} className="!pl-0 leading-none">
+                <div className="relative aspect-[16/6] w-full overflow-hidden bg-[#041737] lg:aspect-[16/5]">
+                  <img
+                    src={slide.src}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 block h-full w-full scale-105 object-cover object-center blur-sm brightness-[0.72]"
+                    loading="eager"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#041737]/20 via-transparent to-[#041737]/20" />
+                  <img
+                    src={slide.src}
+                    alt={slide.alt}
+                    className="relative z-10 block h-full w-full object-contain object-center"
+                    loading="eager"
+                    onError={() => {
+                      setFailedSlides((current) =>
+                        current.includes(slide.id) ? current : [...current, slide.id],
+                      );
+                    }}
+                  />
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          {hasMultiple && (
+            <>
+              <CarouselPrevious className="left-4 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white" />
+              <CarouselNext className="right-4 h-8 w-8 border-none bg-white/80 text-primary hover:bg-white" />
+            </>
+          )}
+        </Carousel>
+      </section>
+    </>
   );
 }
