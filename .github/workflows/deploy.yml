@@ -35,19 +35,12 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          envs: REMOTE_APP_DIR,RESTART_COMMAND
           script_stop: true
           command_timeout: 30m
           script: |
             set -e
-            cd "$REMOTE_APP_DIR"
-            git fetch origin main
-            git reset --hard origin/main
-            npm install --omit=dev
+            cd ~/MHS
+            git pull origin main
+            npm ci
             npm run build
-            if [ -n "$RESTART_COMMAND" ]; then
-              eval "$RESTART_COMMAND"
-            fi
-        env:
-          REMOTE_APP_DIR: ${{ secrets.REMOTE_APP_DIR }}
-          RESTART_COMMAND: ${{ secrets.RESTART_COMMAND }}
+            pm2 reload mhs-app --update-env
