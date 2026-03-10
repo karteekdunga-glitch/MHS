@@ -73,9 +73,14 @@ export function RankersHeroSlider({ rankers }: { rankers: RankerWithMeta[] }) {
                   <img
                     src={slide.imageUrl || FALLBACK_IMAGE}
                     alt={slide.studentName}
-                    className="absolute inset-0 h-full w-full object-cover"
+                    className="absolute inset-0 h-full w-full scale-105 object-cover opacity-35 blur-xl"
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-950/20 to-transparent" />
+                  <img
+                    src={slide.imageUrl || FALLBACK_IMAGE}
+                    alt={slide.studentName}
+                    className="absolute inset-0 h-full w-full object-contain object-center p-4 sm:p-6 lg:p-8"
+                  />
                   <SchoolLogo
                     size={74}
                     className="absolute top-6 left-6 rounded-full border-4 border-white/70 bg-white/95 p-2 shadow-2xl"

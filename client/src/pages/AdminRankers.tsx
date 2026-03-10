@@ -357,19 +357,22 @@ export default function AdminRankers() {
                             alt={formData.studentName || "Ranker preview"}
                             className="h-44 w-36 rounded-2xl border object-cover shadow-sm"
                           />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setCrop({ x: 0, y: 0 });
+                              setZoom(1);
+                              setCroppedAreaPixels(null);
+                              setIsCropping(true);
+                            }}
+                          >
+                            {selectedPhoto ? "Adjust Crop" : "Recrop Current Photo"}
+                          </Button>
                           {selectedPhoto && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                setCrop({ x: 0, y: 0 });
-                                setZoom(1);
-                                setCroppedAreaPixels(null);
-                                setIsCropping(true);
-                              }}
-                            >
-                              Adjust Crop
-                            </Button>
+                            <Badge variant="secondary" className="w-fit">
+                              Cropped file ready to save
+                            </Badge>
                           )}
                         </div>
                       )
