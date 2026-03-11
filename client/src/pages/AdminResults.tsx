@@ -432,14 +432,14 @@ export default function AdminResults() {
                 return (
                   <Card key={groupId} className="border border-slate-200 shadow-sm">
                     <CardHeader className="space-y-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-2">
+                      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1 space-y-2">
                           {isEditing ? (
                             <div className="flex flex-wrap items-center gap-2">
                               <Input
                                 value={groupLabelDraft}
                                 onChange={(event) => setGroupLabelDraft(event.target.value)}
-                                className="h-9 max-w-xs"
+                                className="h-9 w-full sm:max-w-xs"
                               />
                               <Button
                                 size="icon"
@@ -477,12 +477,12 @@ export default function AdminResults() {
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2">
-                              <p className="text-lg font-semibold">{groupLabel}</p>
+                            <div className="flex min-w-0 items-start gap-2">
+                              <p className="min-w-0 break-words text-lg font-semibold leading-snug">{groupLabel}</p>
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-8 w-8"
+                                className="h-8 w-8 shrink-0"
                                 onClick={() => {
                                   setEditingGroup(groupId);
                                   setGroupLabelDraft(groupLabel);
@@ -492,7 +492,7 @@ export default function AdminResults() {
                               </Button>
                             </div>
                           )}
-                          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
                             {classNames.length > 0 && <span>Class: {classNames.join(", ")}</span>}
                             {years.length > 0 && <span>Year: {years.join(", ")}</span>}
                             <span>{groupRows.length} student(s)</span>
@@ -500,7 +500,7 @@ export default function AdminResults() {
                         </div>
                         <Button
                           variant="ghost"
-                          className="gap-2 text-primary"
+                          className="w-full gap-2 text-primary sm:w-auto"
                           onClick={() => {
                             setOpenGroups((prev) =>
                               prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId],
